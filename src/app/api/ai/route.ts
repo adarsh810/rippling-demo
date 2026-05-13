@@ -45,6 +45,7 @@ Rules:
   }
 
   if (mode === 'suggest') {
+    const { description: changeDescription } = body
     const employeeList = employees.map((e: { name: string; department: string; title: string; location: string; compensation: number }) =>
       `- ${e.name}: ${e.title} in ${e.department}, ${e.location}, $${e.compensation.toLocaleString()}`
     ).join('\n')
@@ -56,34 +57,38 @@ Rules:
       device_refresh: 'no attribute changes needed — device policy updates are downstream',
     }
 
-    const hint = attrHints[eventType] ?? 'suggest the most relevant attribute changes'
+    const hint = changeDescription
+      ? `Admin description: "${changeDescription}"`
+      : (attrHints[eventType] ?? 'suggest the most relevant attribute changes')
 
     const msg = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
-      system: `You are an AI assistant in Rippling's bulk change tool. Suggest specific attribute changes for employees based on an HR event.
+      max_tokens: 2048,
+      system: `You are an AI assistant in Rippling's bulk change tool. Suggest specific attribute changes for employees based on an HR event and admin description.
 Respond ONLY with valid JSON array, no markdown.`,
       messages: [{
         role: 'user',
-        content: `Event: ${eventType} (${changeType === 'simple' ? 'uniform change' : 'per-employee changes'})
-Hint: ${hint}
+        content: `Event type: ${eventType}
+${hint}
 
 Employees:
 ${employeeList}
 
-Respond with JSON array:
+Respond with a JSON array of changes:
 [
   {
     "employee_name": "...",
-    "attribute": "compensation|title|department|location",
+    "attribute": "compensation|title|department|location|manager",
     "new_value": "...",
     "reasoning": "brief reason"
   }
 ]
 
-For simple changes: use the SAME new_value for all employees on the same attribute.
-For complex changes: vary new_value per employee (e.g. different comp amounts).
-Only include changes that make sense for the event type.`
+Rules:
+- For complex/per-employee changes: vary values per employee based on their context and the admin description
+- Only include changes that make sense given the description
+- compensation values must be numbers (no $ or commas)
+- Be specific and realistic`
       }]
     })
 
