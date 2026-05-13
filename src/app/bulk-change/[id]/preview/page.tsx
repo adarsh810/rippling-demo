@@ -98,7 +98,7 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
   if (loading) return <div className="p-8 text-gray-400 text-sm">Loading preview...</div>
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
+    <div className="p-4 md:p-8 max-w-5xl mx-auto">
       <div className="mb-8"><StepBar current={4} /></div>
 
       <div className="flex items-center justify-between mb-6">
@@ -110,7 +110,7 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-3 gap-3 md:gap-4 mb-6">
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <p className="text-xs text-gray-500 uppercase tracking-wide">Employees Affected</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{uniqueEmployees}</p>
@@ -125,8 +125,8 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-6 mb-6">
-        <div className="col-span-2">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-6">
+        <div className="md:col-span-2 overflow-x-auto">
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-3">
               <h2 className="font-semibold text-gray-900">Change Detail</h2>

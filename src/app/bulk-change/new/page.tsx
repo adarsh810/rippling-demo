@@ -70,7 +70,7 @@ export default function NewBulkChange() {
   const activeTemplate = EVENT_TEMPLATES.find(t => t.id === selected)
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="p-4 md:p-8 max-w-4xl mx-auto">
       <div className="mb-8">
         <StepBar current={1} />
       </div>
@@ -80,7 +80,7 @@ export default function NewBulkChange() {
         <p className="text-gray-500 text-sm mt-1">Select a template or describe the situation — AI will route to the right flow.</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
         {EVENT_TEMPLATES.map(t => (
           <button
             key={t.id}

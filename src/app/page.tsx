@@ -24,8 +24,8 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-4 md:p-8 max-w-6xl mx-auto">
+      <div className="flex items-center justify-between mb-6 md:mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Bulk Change</h1>
           <p className="text-gray-500 text-sm mt-1">AI-powered multi-employee attribute updates</p>
@@ -38,7 +38,7 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
         {[
           { label: 'Total Changes', value: stats.total, color: 'text-gray-900' },
           { label: 'Executed', value: stats.executed, color: 'text-green-600' },
@@ -52,7 +52,7 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden overflow-x-auto">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
           <h2 className="font-semibold text-gray-900">Recent Bulk Changes</h2>
           <Link href="/audit" className="text-xs text-orange-500 hover:underline">View audit trail →</Link>

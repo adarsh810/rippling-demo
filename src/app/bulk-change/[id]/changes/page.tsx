@@ -177,7 +177,7 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
   }, {})
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
+    <div className="p-4 md:p-8 max-w-5xl mx-auto">
       <div className="mb-8"><StepBar current={3} /></div>
 
       <div className="flex items-center justify-between mb-6">

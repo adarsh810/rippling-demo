@@ -135,7 +135,7 @@ export default function ApprovePage({ params }: { params: Promise<{ id: string }
   }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="p-4 md:p-8 max-w-4xl mx-auto">
       <div className="mb-8"><StepBar current={5} /></div>
 
       <div className="flex items-center justify-between mb-6">
@@ -146,7 +146,7 @@ export default function ApprovePage({ params }: { params: Promise<{ id: string }
         {change && <StatusBadge status={change.status} />}
       </div>
 
-      <div className="grid grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6">
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <h2 className="font-semibold text-gray-900 mb-3 text-sm">Change Summary</h2>
           <dl className="space-y-2 text-sm">

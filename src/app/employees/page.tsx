@@ -74,7 +74,7 @@ export default function EmployeesPage() {
   const countByVertical = (v: VerticalTab) => v === 'all' ? employees.length : employees.filter(e => e.vertical === v).length
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Employees</h1>
@@ -124,7 +124,7 @@ export default function EmployeesPage() {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mb-5">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-5">
         {[
           { label: 'Showing', value: filtered.length, sub: `of ${employees.length} total` },
           { label: 'Avg Compensation', value: `$${avgComp.toLocaleString()}`, sub: 'filtered set' },
@@ -175,7 +175,7 @@ export default function EmployeesPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr>

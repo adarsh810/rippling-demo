@@ -60,7 +60,7 @@ export default function ScopePage({ params }: { params: Promise<{ id: string }> 
   }
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
+    <div className="p-4 md:p-8 max-w-5xl mx-auto">
       <div className="mb-8"><StepBar current={2} /></div>
 
       <div className="flex items-center justify-between mb-6">
@@ -75,7 +75,7 @@ export default function ScopePage({ params }: { params: Promise<{ id: string }> 
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 mb-6 p-4 flex gap-4">
+      <div className="bg-white rounded-xl border border-gray-200 mb-4 p-3 md:p-4 flex flex-col sm:flex-row gap-2 md:gap-4">
         <select
           value={filters.dept}
           onChange={e => setFilters(f => ({ ...f, dept: e.target.value }))}
@@ -106,7 +106,7 @@ export default function ScopePage({ params }: { params: Promise<{ id: string }> 
         >Clear</button>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto mb-6">
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr>

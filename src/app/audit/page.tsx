@@ -54,7 +54,7 @@ export default function AuditPage() {
   const lastAction = (logs: AuditLog[]) => logs[logs.length - 1]?.action ?? 'created'
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
+    <div className="p-4 md:p-8 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Audit Trail</h1>
