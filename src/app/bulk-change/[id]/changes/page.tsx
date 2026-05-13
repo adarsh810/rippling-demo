@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import StepBar from '@/components/StepBar'
-import { Employee, BulkChange, EVENT_TEMPLATES } from '@/types'
+import { Employee, BulkChange, EVENT_TEMPLATES, VERTICAL_ATTRS } from '@/types'
 import { supabase } from '@/lib/supabase'
 
 interface ChangeRow {
@@ -20,7 +20,7 @@ interface SimpleRule {
   new_value: string
 }
 
-const ATTRS = ['compensation', 'title', 'department', 'location', 'manager']
+const BASE_ATTRS = ['compensation', 'title', 'department', 'location', 'manager']
 
 const ATTR_PLACEHOLDER: Record<string, string> = {
   compensation: 'e.g. 145000',
@@ -167,6 +167,11 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
   const isSimple = change?.change_type === 'simple'
   const validRules = rules.filter(r => r.new_value.trim())
   const usedAttrs = new Set(rules.map(r => r.attribute))
+
+  // Build available attrs based on verticals of scoped employees
+  const scopedVerticals = [...new Set(employees.map(e => e.vertical))]
+  const verticalSpecificAttrs = scopedVerticals.flatMap(v => (VERTICAL_ATTRS[v] ?? []).map(a => a.key))
+  const ATTRS = [...new Set([...BASE_ATTRS, ...verticalSpecificAttrs])]
 
   // Group staged rows by attribute for a cleaner summary view
   const attrGroups = rows.reduce<Record<string, ChangeRow[]>>((acc, r) => {

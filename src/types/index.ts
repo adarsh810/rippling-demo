@@ -17,6 +17,36 @@ export interface Employee {
   vertical: Vertical
   status: string
   created_at: string
+  // full_time specific
+  equity_grant: number | null
+  pto_days: number | null
+  bonus_target: number | null
+  // hourly specific
+  hourly_rate: number | null
+  overtime_eligible: boolean | null
+  shift_type: string | null
+  // contractor specific
+  contract_end_date: string | null
+  agency_name: string | null
+  bill_rate: number | null
+}
+
+export const VERTICAL_ATTRS: Record<string, { key: string; label: string; type: string }[]> = {
+  full_time: [
+    { key: 'equity_grant',  label: 'Equity Grant ($)', type: 'number' },
+    { key: 'pto_days',      label: 'PTO Days',         type: 'number' },
+    { key: 'bonus_target',  label: 'Bonus Target (%)', type: 'number' },
+  ],
+  hourly: [
+    { key: 'hourly_rate',      label: 'Hourly Rate ($)',    type: 'number' },
+    { key: 'overtime_eligible',label: 'OT Eligible',        type: 'boolean' },
+    { key: 'shift_type',       label: 'Shift',              type: 'text' },
+  ],
+  contractor: [
+    { key: 'contract_end_date', label: 'Contract End',  type: 'date' },
+    { key: 'agency_name',       label: 'Agency',        type: 'text' },
+    { key: 'bill_rate',         label: 'Bill Rate ($/hr)', type: 'number' },
+  ],
 }
 
 export interface BulkChange {
