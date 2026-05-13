@@ -36,7 +36,8 @@ Rules:
 
     const text = msg.content[0].type === 'text' ? msg.content[0].text : ''
     try {
-      const json = JSON.parse(text.trim())
+      const cleaned = text.trim().replace(/^```json\n?/, '').replace(/\n?```$/, '').trim()
+      const json = JSON.parse(cleaned)
       return Response.json(json)
     } catch {
       return Response.json({ error: 'Parse error', raw: text }, { status: 500 })
