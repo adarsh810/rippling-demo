@@ -7,6 +7,7 @@ import clsx from 'clsx'
 const links = [
   { href: '/', label: 'Dashboard', icon: '⊞' },
   { href: '/bulk-change/new', label: 'New Bulk Change', icon: '+' },
+  { href: '/employees', label: 'Employees', icon: '👤' },
   { href: '/audit', label: 'Audit Trail', icon: '☰' },
 ]
 
