@@ -97,6 +97,7 @@ export default function Dashboard() {
                       href={
                         c.status === 'draft' ? `/bulk-change/${c.id}/scope` :
                         c.status === 'pending_approval' ? `/bulk-change/${c.id}/approve` :
+                        c.status === 'executed' || c.status === 'approved' || c.status === 'rolled_back' || c.status === 'rejected' ? `/bulk-change/${c.id}/approve` :
                         `/bulk-change/${c.id}/preview`
                       }
                       className="text-orange-500 hover:underline text-xs"

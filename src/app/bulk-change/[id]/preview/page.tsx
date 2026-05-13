@@ -104,7 +104,9 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Preview Changes</h1>
-          <p className="text-gray-500 text-sm mt-1">Review before committing to approval workflow</p>
+          <p className="text-gray-500 text-sm mt-1">
+            {change?.status === 'draft' ? 'Review before committing to approval workflow' : `Status: ${change?.status?.replace(/_/g, ' ')}`}
+          </p>
         </div>
       </div>
 
@@ -235,13 +237,22 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
 
       <div className="flex justify-between">
         <button onClick={() => router.back()} className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">← Back</button>
-        <button
-          onClick={handleSubmitForApproval}
-          disabled={submitting}
-          className="px-6 py-2.5 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 disabled:opacity-40 transition-colors"
-        >
-          {submitting ? 'Submitting...' : 'Submit for Approval →'}
-        </button>
+        {(!change?.status || change.status === 'draft') ? (
+          <button
+            onClick={handleSubmitForApproval}
+            disabled={submitting}
+            className="px-6 py-2.5 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 disabled:opacity-40 transition-colors"
+          >
+            {submitting ? 'Submitting...' : 'Submit for Approval →'}
+          </button>
+        ) : (
+          <button
+            onClick={() => router.push(`/bulk-change/${id}/approve`)}
+            className="px-6 py-2.5 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-colors"
+          >
+            {change.status === 'executed' || change.status === 'approved' ? 'View / Rollback →' : 'View Decision →'}
+          </button>
+        )}
       </div>
     </div>
   )
