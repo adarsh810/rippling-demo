@@ -30,7 +30,12 @@ export default function EmployeesPage() {
     if (filters.location && e.location !== filters.location) return false
     if (filters.search) {
       const q = filters.search.toLowerCase()
-      if (!e.name.toLowerCase().includes(q) && !e.title.toLowerCase().includes(q) && !e.email.toLowerCase().includes(q)) return false
+      if (
+        !e.name.toLowerCase().includes(q) &&
+        !e.title.toLowerCase().includes(q) &&
+        !(e.work_email ?? e.email).toLowerCase().includes(q) &&
+        !(e.manager ?? '').toLowerCase().includes(q)
+      ) return false
     }
     return true
   })
@@ -44,14 +49,10 @@ export default function EmployeesPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Employees</h1>
-          <p className="text-gray-500 text-sm mt-1">
-            Live employee records — reflects executed bulk changes
-          </p>
+          <p className="text-gray-500 text-sm mt-1">Live employee records — reflects executed bulk changes</p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-gray-400">
-            Last refreshed {lastRefresh.toLocaleTimeString()}
-          </span>
+          <span className="text-xs text-gray-400">Last refreshed {lastRefresh.toLocaleTimeString()}</span>
           <button
             onClick={load}
             disabled={loading}
@@ -81,7 +82,7 @@ export default function EmployeesPage() {
       <div className="bg-white rounded-xl border border-gray-200 mb-4 p-4 flex gap-3 flex-wrap">
         <input
           type="text"
-          placeholder="Search by name, title, email..."
+          placeholder="Search name, title, email, manager..."
           value={filters.search}
           onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
           className="flex-1 min-w-[200px] px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
@@ -124,27 +125,24 @@ export default function EmployeesPage() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr>
-              {['Name', 'Title', 'Department', 'Location', 'Employment', 'Compensation'].map(h => (
+              {['Name & Work Email', 'Title', 'Manager', 'Department', 'Location', 'Employment', 'Compensation'].map(h => (
                 <th key={h} className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {loading ? (
-              <tr>
-                <td colSpan={6} className="px-5 py-12 text-center text-gray-400 text-sm">Loading...</td>
-              </tr>
+              <tr><td colSpan={7} className="px-5 py-12 text-center text-gray-400 text-sm">Loading...</td></tr>
             ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-5 py-12 text-center text-gray-400 text-sm">No employees match the filters.</td>
-              </tr>
+              <tr><td colSpan={7} className="px-5 py-12 text-center text-gray-400 text-sm">No employees match the filters.</td></tr>
             ) : filtered.map(e => (
               <tr key={e.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-5 py-3">
                   <p className="font-medium text-gray-900">{e.name}</p>
-                  <p className="text-gray-400 text-xs">{e.email}</p>
+                  <p className="text-gray-400 text-xs">{e.work_email ?? e.email}</p>
                 </td>
                 <td className="px-5 py-3 text-gray-700">{e.title}</td>
+                <td className="px-5 py-3 text-gray-700">{e.manager ?? <span className="text-gray-300">—</span>}</td>
                 <td className="px-5 py-3 text-gray-700">{e.department}</td>
                 <td className="px-5 py-3 text-gray-700">{e.location}</td>
                 <td className="px-5 py-3">
@@ -154,9 +152,7 @@ export default function EmployeesPage() {
                                                  'bg-gray-100 text-gray-600'
                   }`}>{e.vertical.replace('_', ' ')}</span>
                 </td>
-                <td className="px-5 py-3 font-semibold text-gray-900">
-                  ${e.compensation.toLocaleString()}
-                </td>
+                <td className="px-5 py-3 font-semibold text-gray-900">${e.compensation.toLocaleString()}</td>
               </tr>
             ))}
           </tbody>

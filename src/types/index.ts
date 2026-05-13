@@ -7,6 +7,8 @@ export interface Employee {
   id: string
   name: string
   email: string
+  work_email: string | null
+  manager: string | null
   department: string
   title: string
   manager_id: string | null
