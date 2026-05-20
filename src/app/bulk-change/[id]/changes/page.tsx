@@ -188,6 +188,11 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
           employees: employees.map(e => ({
             name: e.name, department: e.department, title: e.title,
             location: e.location, compensation: e.compensation,
+            vertical: e.vertical,
+            // vertical-specific fields so AI can suggest appropriate attrs
+            hourly_rate: e.hourly_rate, overtime_eligible: e.overtime_eligible, shift_type: e.shift_type,
+            equity_grant: e.equity_grant, bonus_target: e.bonus_target, pto_days: e.pto_days,
+            bill_rate: e.bill_rate, agency_name: e.agency_name, contract_end_date: e.contract_end_date,
           })),
         }),
       })
@@ -252,13 +257,13 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
   const validRules = rules.filter(r => r.new_value.trim())
   const usedAttrs  = new Set(rules.map(r => r.attribute))
   const scopedVerticals = [...new Set(employees.map(e => e.vertical))]
-  // Intersection: only include vertical-specific attrs shared by ALL scoped verticals.
-  // If multiple different verticals are scoped, only base attrs are available.
-  const intersectedVerticalAttrs = scopedVerticals.length === 1
-    ? (VERTICAL_ATTRS[scopedVerticals[0]] ?? []).map(a => a.key)
-    : []
-  const ATTRS = [...new Set([...BASE_ATTRS, ...intersectedVerticalAttrs])]
-  const hasMixedVerticals = scopedVerticals.length > 1 &&
+  // Simple: intersection — every scoped employee must have the attr (same value applied to all)
+  // Complex: union — different employees can get different attrs from their own vertical
+  const verticalAttrs = isSimple
+    ? (scopedVerticals.length === 1 ? (VERTICAL_ATTRS[scopedVerticals[0]] ?? []).map(a => a.key) : [])
+    : scopedVerticals.flatMap(v => (VERTICAL_ATTRS[v] ?? []).map(a => a.key))
+  const ATTRS = [...new Set([...BASE_ATTRS, ...verticalAttrs])]
+  const hasMixedVerticals = isSimple && scopedVerticals.length > 1 &&
     scopedVerticals.some(v => (VERTICAL_ATTRS[v] ?? []).length > 0)
   const depts     = [...new Set(allEmployees.map(e => e.department))].sort()
   const locations = [...new Set(allEmployees.map(e => e.location))].sort()

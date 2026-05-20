@@ -24,7 +24,7 @@ Respond ONLY with valid JSON, no markdown.`,
 
 Classify this and respond with JSON:
 {
-  "event_type": "reorg|perf_cycle|new_office|device_refresh|contractor_renewal|role_change|custom",
+  "event_type": "reorg|perf_cycle|schedule_restructure|new_office|device_refresh|contractor_renewal|role_change|custom",
   "event_label": "Human readable label",
   "change_type": "simple|complex",
   "suggested_attrs": ["<pick relevant attrs from the full list below>"],
@@ -55,15 +55,38 @@ Rules:
 
   if (mode === 'suggest') {
     const { description: changeDescription } = body
-    const employeeList = employees.map((e: { name: string; department: string; title: string; location: string; compensation: number }) =>
-      `- ${e.name}: ${e.title} in ${e.department}, ${e.location}, $${e.compensation.toLocaleString()}`
-    ).join('\n')
+    type EmpInput = {
+      name: string; department: string; title: string; location: string
+      compensation: number; vertical?: string
+      hourly_rate?: number; overtime_eligible?: boolean; shift_type?: string
+      equity_grant?: number; bonus_target?: number; pto_days?: number
+      bill_rate?: number; agency_name?: string; contract_end_date?: string
+    }
+    const employeeList = employees.map((e: EmpInput) => {
+      const base = `- ${e.name} (${e.vertical ?? 'full_time'}): ${e.title} in ${e.department}, ${e.location}, $${e.compensation.toLocaleString()}`
+      const extras: string[] = []
+      if (e.vertical === 'hourly') {
+        if (e.hourly_rate)          extras.push(`rate: $${e.hourly_rate}/hr`)
+        if (e.shift_type)           extras.push(`shift: ${e.shift_type}`)
+        if (e.overtime_eligible != null) extras.push(`OT: ${e.overtime_eligible}`)
+      } else if (e.vertical === 'contractor') {
+        if (e.bill_rate)            extras.push(`bill: $${e.bill_rate}/hr`)
+        if (e.agency_name)          extras.push(`agency: ${e.agency_name}`)
+        if (e.contract_end_date)    extras.push(`ends: ${e.contract_end_date}`)
+      } else {
+        if (e.equity_grant)         extras.push(`equity: $${e.equity_grant.toLocaleString()}`)
+        if (e.bonus_target)         extras.push(`bonus target: ${e.bonus_target}%`)
+        if (e.pto_days)             extras.push(`PTO: ${e.pto_days}d`)
+      }
+      return extras.length ? `${base} [${extras.join(', ')}]` : base
+    }).join('\n')
 
     const attrHints: Record<string, string> = {
-      new_office: 'location → suggest the new office city based on context (default: "Austin")',
-      reorg: 'department → suggest new department; title may need updating',
-      perf_cycle: 'compensation → suggest 5-15% increase; title may be promoted',
-      device_refresh: 'no attribute changes needed — device policy updates are downstream',
+      new_office:           'location → suggest the new office city based on context (default: "Austin")',
+      reorg:                'department, title, manager_id → suggest restructured reporting lines; equity_grant or overtime_eligible may change per role',
+      perf_cycle:           'compensation → vary 5-15% by performance; bonus_target for FT; hourly_rate for hourly; bill_rate for contractors; title for promotions',
+      schedule_restructure: 'hourly_rate, overtime_eligible, shift_type → vary per employee based on new schedule needs',
+      device_refresh:       'no attribute changes needed — device policy updates are downstream',
     }
 
     const docSection = documentContext
@@ -91,16 +114,18 @@ Respond with a JSON array of changes:
 [
   {
     "employee_name": "...",
-    "attribute": "compensation|title|department|location|manager",
+    "attribute": "compensation|title|department|location|manager_id|equity_grant|bonus_target|pto_days|hourly_rate|overtime_eligible|shift_type|bill_rate|agency_name|contract_end_date",
     "new_value": "...",
     "reasoning": "brief reason"
   }
 ]
 
 Rules:
-- For complex/per-employee changes: vary values per employee based on their context and the admin description
-- Only include changes that make sense given the description
-- compensation values must be numbers (no $ or commas)
+- Vary values per employee based on their vertical, role, and the admin description
+- Only suggest attrs that the employee's vertical supports (hourly employees get hourly_rate/shift_type/overtime_eligible, full-time get equity_grant/bonus_target, contractors get bill_rate/contract_end_date)
+- Base attrs (compensation, title, department, location, manager_id) apply to all verticals
+- compensation, hourly_rate, bill_rate, equity_grant, bonus_target, pto_days values must be plain numbers
+- overtime_eligible values must be "true" or "false"
 - Be specific and realistic`
       }]
     })

@@ -19,21 +19,18 @@ Object.entries(VERTICAL_ATTRS).forEach(([v, attrs]) => {
 // Returns which verticals are allowed based on the change's suggested attrs.
 // null = no restriction (all verticals ok).
 function computeAllowedVerticals(change: BulkChange | null): string[] | null {
-  if (!change || change.change_type !== 'simple') return null
+  if (!change) return null
 
   let suggestedAttrs: string[] = []
 
-  // AI route: ai_suggestions.suggested_attrs is always checked first.
-  // Quick-start (manual) route: event_type='custom' with empty ai_suggestions → stays []
   const aiSuggested = (change.ai_suggestions as Record<string, unknown>)?.suggested_attrs
   if (Array.isArray(aiSuggested) && aiSuggested.length > 0) {
     suggestedAttrs = aiSuggested as string[]
   } else if (change.event_type !== 'custom') {
-    // Template route — look up suggestedAttrs from the template definition
     const template = EVENT_TEMPLATES.find(t => t.id === change.event_type)
     suggestedAttrs = template?.suggestedAttrs ?? []
   }
-  // Quick-start: event_type='custom' + no ai suggested_attrs → suggestedAttrs stays [] → no restriction
+  // Quick-start: event_type='custom' + no ai suggested_attrs → stays [] → null below
 
   if (!suggestedAttrs.length) return null
 
@@ -41,9 +38,11 @@ function computeAllowedVerticals(change: BulkChange | null): string[] | null {
   if (!verticalSpecific.length) return null // all base attrs — no restriction
 
   const allVerticals = ['full_time', 'hourly', 'contractor']
-  return allVerticals.filter(v =>
+  const allowed = allVerticals.filter(v =>
     verticalSpecific.every(a => ATTR_TO_VERTICALS[a]?.includes(v))
   )
+  // Empty means attrs span multiple verticals — no single vertical satisfies all, so no lock
+  return allowed.length > 0 ? allowed : null
 }
 
 export default function ScopePage({ params }: { params: Promise<{ id: string }> }) {

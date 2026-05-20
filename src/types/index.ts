@@ -104,7 +104,8 @@ export const EVENT_TEMPLATES = [
     description: 'Department restructuring or reporting line changes',
     icon: '🏢',
     changeType: 'complex' as ChangeType,
-    suggestedAttrs: ['department', 'title', 'manager_id'],
+    // Cross-vertical: department, title, manager_id + FT: equity_grant + hourly: overtime_eligible
+    suggestedAttrs: ['department', 'title', 'manager_id', 'equity_grant', 'overtime_eligible'],
   },
   {
     id: 'perf_cycle',
@@ -112,7 +113,17 @@ export const EVENT_TEMPLATES = [
     description: 'Performance-based compensation and title updates',
     icon: '📈',
     changeType: 'complex' as ChangeType,
-    suggestedAttrs: ['compensation', 'title'],
+    // Cross-vertical: compensation, title + FT: bonus_target + hourly: hourly_rate + contractor: bill_rate
+    suggestedAttrs: ['compensation', 'title', 'bonus_target', 'hourly_rate', 'bill_rate'],
+  },
+  {
+    id: 'schedule_restructure',
+    label: 'Schedule Restructure',
+    description: 'Adjust shift schedules, overtime eligibility, and rates for hourly workers',
+    icon: '⏰',
+    changeType: 'complex' as ChangeType,
+    // Hourly-only attrs — vertical locking to hourly kicks in generically
+    suggestedAttrs: ['hourly_rate', 'overtime_eligible', 'shift_type'],
   },
   {
     id: 'new_office',
