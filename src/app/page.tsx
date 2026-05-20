@@ -166,38 +166,19 @@ export default function Dashboard() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  {['Event', 'Type', 'Employees', 'Created By', 'Status', 'Date', ''].map(h => (
-                    <th key={h} className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">{h}</th>
+                  {(persona === 'admin' ? ['', 'Event', 'Type', 'Employees', 'Created By', 'Status', 'Date', ''] : ['Event', 'Type', 'Employees', 'Created By', 'Status', 'Date', '']).map((h, i) => (
+                    <th key={i} className="text-left px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide first:pl-6 last:pr-6">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {paginated.map(c => (
                   <tr key={c.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <p className="font-medium text-gray-900">
-                        {c.event_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      </p>
-                      {c.event_description && (
-                        <p className="text-gray-400 text-xs mt-0.5 truncate max-w-[200px]">{c.event_description}</p>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`text-xs px-2 py-0.5 rounded font-medium ${
-                        c.change_type === 'complex' ? 'bg-purple-100 text-purple-700' : 'bg-indigo-100 text-indigo-700'
-                      }`}>
-                        {c.change_type}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-gray-600">{c.employee_count}</td>
-                    <td className="px-6 py-4 text-gray-600">{c.created_by}</td>
-                    <td className="px-6 py-4"><StatusBadge status={c.status} /></td>
-                    <td className="px-6 py-4 text-gray-400">{new Date(c.created_at).toLocaleDateString()}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2 whitespace-nowrap">
-                        {persona === 'admin' && c.event_type === 'custom' && (
+                    {persona === 'admin' && (
+                      <td className="pl-6 pr-1 py-4 w-8">
+                        {c.event_type === 'custom' && (
                           savedIds.has(c.id) ? (
-                            <span title="Saved as template" className="text-green-500 text-base leading-none">⭐</span>
+                            <span title="Saved as template" className="text-amber-400 text-base leading-none">⭐</span>
                           ) : (
                             <button
                               onClick={() => openTemplateModal(c)}
@@ -208,10 +189,31 @@ export default function Dashboard() {
                             </button>
                           )
                         )}
-                        <Link href={viewHref(c)} className="text-indigo-500 hover:text-indigo-700 text-xs">
-                          {viewLabel(c)}
-                        </Link>
-                      </div>
+                      </td>
+                    )}
+                    <td className="px-3 py-4 first:pl-6">
+                      <p className="font-medium text-gray-900">
+                        {c.event_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </p>
+                      {c.event_description && (
+                        <p className="text-gray-400 text-xs mt-0.5 truncate max-w-[200px]">{c.event_description}</p>
+                      )}
+                    </td>
+                    <td className="px-3 py-4">
+                      <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+                        c.change_type === 'complex' ? 'bg-purple-100 text-purple-700' : 'bg-indigo-100 text-indigo-700'
+                      }`}>
+                        {c.change_type}
+                      </span>
+                    </td>
+                    <td className="px-3 py-4 text-gray-600">{c.employee_count}</td>
+                    <td className="px-3 py-4 text-gray-600">{c.created_by}</td>
+                    <td className="px-3 py-4"><StatusBadge status={c.status} /></td>
+                    <td className="px-3 py-4 text-gray-400">{new Date(c.created_at).toLocaleDateString()}</td>
+                    <td className="px-3 pr-6 py-4">
+                      <Link href={viewHref(c)} className="text-indigo-500 hover:text-indigo-700 text-xs whitespace-nowrap">
+                        {viewLabel(c)}
+                      </Link>
                     </td>
                   </tr>
                 ))}
