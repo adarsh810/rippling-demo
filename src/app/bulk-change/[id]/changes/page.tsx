@@ -120,8 +120,17 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
       .then(({ data }) => {
         setChange(data)
         if (data?.change_type === 'simple') {
-          const tmpl = EVENT_TEMPLATES.find(t => t.id === data.event_type)
-          const attrs = tmpl?.suggestedAttrs?.length ? tmpl.suggestedAttrs : ['location']
+          // AI route: prefer ai_suggestions.suggested_attrs (AI inferred the right attrs for this scenario)
+          // Template route: fall back to template's suggestedAttrs
+          // Quick start: event_type='custom' + no ai suggestions → default to 'location'
+          const aiSuggested = (data.ai_suggestions as Record<string, unknown>)?.suggested_attrs
+          let attrs: string[]
+          if (Array.isArray(aiSuggested) && aiSuggested.length > 0) {
+            attrs = aiSuggested as string[]
+          } else {
+            const tmpl = EVENT_TEMPLATES.find(t => t.id === data.event_type)
+            attrs = tmpl?.suggestedAttrs?.length ? tmpl.suggestedAttrs : ['location']
+          }
           setRules(attrs.map(a => ({ attribute: a, new_value: '' })))
         }
       })
