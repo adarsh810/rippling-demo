@@ -35,6 +35,14 @@ const ATTR_PLACEHOLDER: Record<string, string> = {
 const SELECT_CLS = 'w-full px-2 py-1 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500'
 const INPUT_CLS  = 'w-full px-2 py-1 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500'
 
+function attrLabel(key: string): string {
+  for (const attrs of Object.values(VERTICAL_ATTRS)) {
+    const found = attrs.find(a => a.key === key)
+    if (found) return found.label
+  }
+  return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+}
+
 function ValueInput({ attr, value, onChange, depts, locations, managers, compact = true }: {
   attr: string
   value: string
@@ -111,6 +119,7 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
 
   // Complex flow state
   const [phase, setPhase] = useState<'describe' | 'review'>('describe')
+  const [selectedAttrs, setSelectedAttrs] = useState<string[]>([])
   const [description, setDescription] = useState('')
   const [suggesting, setSuggesting] = useState(false)
   const [error, setError] = useState('')
@@ -119,19 +128,17 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
     supabase.from('rpl_bulk_changes').select('*').eq('id', id).single()
       .then(({ data }) => {
         setChange(data)
+        const aiSuggested = (data.ai_suggestions as Record<string, unknown>)?.suggested_attrs
+        const aiAttrs = Array.isArray(aiSuggested) && aiSuggested.length > 0 ? aiSuggested as string[] : null
+        const tmpl = EVENT_TEMPLATES.find(t => t.id === data.event_type)
+
         if (data?.change_type === 'simple') {
-          // AI route: prefer ai_suggestions.suggested_attrs (AI inferred the right attrs for this scenario)
-          // Template route: fall back to template's suggestedAttrs
-          // Quick start: event_type='custom' + no ai suggestions → default to 'location'
-          const aiSuggested = (data.ai_suggestions as Record<string, unknown>)?.suggested_attrs
-          let attrs: string[]
-          if (Array.isArray(aiSuggested) && aiSuggested.length > 0) {
-            attrs = aiSuggested as string[]
-          } else {
-            const tmpl = EVENT_TEMPLATES.find(t => t.id === data.event_type)
-            attrs = tmpl?.suggestedAttrs?.length ? tmpl.suggestedAttrs : ['location']
-          }
+          const attrs = aiAttrs ?? (tmpl?.suggestedAttrs?.length ? tmpl.suggestedAttrs : ['location'])
           setRules(attrs.map(a => ({ attribute: a, new_value: '' })))
+        } else {
+          // Complex: pre-populate attribute chips from template or AI
+          const attrs = aiAttrs ?? tmpl?.suggestedAttrs ?? []
+          setSelectedAttrs(attrs)
         }
       })
     supabase.from('rpl_employees').select('*').order('name')
@@ -173,7 +180,8 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
 
   // ── Complex helpers ─────────────────────────────────────────────────
   const generateSuggestions = async () => {
-    if (!change || employees.length === 0 || !description.trim()) return
+    if (!change || employees.length === 0) return
+    if (selectedAttrs.length === 0 && !description.trim()) return
     setSuggesting(true)
     setError('')
     try {
@@ -184,7 +192,8 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
           mode: 'suggest',
           eventType: change.event_type,
           changeType: change.change_type,
-          description: description.trim(),
+          description: description.trim() || null,
+          targetAttrs: selectedAttrs,
           employees: employees.map(e => ({
             name: e.name, department: e.department, title: e.title,
             location: e.location, compensation: e.compensation,
@@ -368,75 +377,121 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
       )}
 
       {/* ── COMPLEX PHASE 1: DESCRIBE ── */}
-      {!isSimple && phase === 'describe' && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-          <div className="flex items-start gap-3 mb-5">
-            <span className="text-indigo-500 text-xl mt-0.5">✦</span>
+      {!isSimple && phase === 'describe' && (() => {
+        const verticalBadge = scopedVerticals.length === 1
+          ? { label: scopedVerticals[0].replace('_', ' '), cls: scopedVerticals[0] === 'hourly' ? 'bg-yellow-100 text-yellow-700' : scopedVerticals[0] === 'contractor' ? 'bg-gray-100 text-gray-600' : 'bg-blue-100 text-blue-700' }
+          : { label: 'all employment types', cls: 'bg-indigo-100 text-indigo-700' }
+        const availableToAdd = ATTRS.filter(a => !selectedAttrs.includes(a))
+        const canGenerate = selectedAttrs.length > 0 || description.trim().length > 0
+
+        return (
+          <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6 space-y-5">
+
+            {/* Attributes in scope */}
             <div>
-              <h2 className="font-semibold text-gray-900">Describe what needs to change</h2>
-              <p className="text-gray-400 text-sm mt-0.5">
-                Be as specific as you like — mention criteria, amounts, promotions, or exceptions.
-                Claude will generate per-employee suggestions based on this.
+              <div className="flex items-center gap-2 mb-3">
+                <p className="text-sm font-semibold text-gray-900">Attributes in scope</p>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${verticalBadge.cls}`}>
+                  {verticalBadge.label}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {selectedAttrs.map(attr => (
+                  <span key={attr} className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-medium rounded-full">
+                    {attrLabel(attr)}
+                    <button
+                      onClick={() => setSelectedAttrs(prev => prev.filter(a => a !== attr))}
+                      className="text-indigo-300 hover:text-indigo-600 leading-none text-base"
+                    >×</button>
+                  </span>
+                ))}
+                {selectedAttrs.length === 0 && (
+                  <span className="text-xs text-gray-400 italic">No attributes selected — add one below</span>
+                )}
+                {availableToAdd.length > 0 && (
+                  <select
+                    value=""
+                    onChange={e => { if (e.target.value) setSelectedAttrs(prev => [...prev, e.target.value]) }}
+                    className="text-xs px-2 py-1 border border-dashed border-gray-300 rounded-full text-gray-400 focus:outline-none focus:ring-1 focus:ring-indigo-400 cursor-pointer hover:border-gray-400"
+                  >
+                    <option value="">+ Add attribute</option>
+                    {availableToAdd.map(a => <option key={a} value={a}>{attrLabel(a)}</option>)}
+                  </select>
+                )}
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-gray-100" />
+              <span className="text-xs text-gray-400 flex-shrink-0">optionally describe the change for more precise suggestions</span>
+              <div className="flex-1 h-px bg-gray-100" />
+            </div>
+
+            {/* Optional description */}
+            <div>
+              <textarea
+                rows={4}
+                placeholder={
+                  change?.event_type === 'perf_cycle'
+                    ? "e.g. Top performers get 12% comp increase and promotion. Mid-performers get 6%. Skip below-expectations."
+                    : change?.event_type === 'reorg'
+                    ? "e.g. Move Sales engineers to Solutions Engineering under Nina Kowalski. Update reporting lines."
+                    : change?.event_type === 'schedule_restructure'
+                    ? "e.g. Move morning shift workers to evening. Increase overtime eligibility for leads."
+                    : "Optional — describe criteria, amounts, or per-employee notes."
+                }
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none text-gray-800 placeholder-gray-300"
+              />
+            </div>
+
+            {/* Employee pills */}
+            <div className="flex flex-wrap gap-2">
+              {employees.slice(0, 5).map(e => (
+                <span key={e.id} className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">
+                  {e.name} · {e.title}
+                </span>
+              ))}
+              {employees.length > 5 && (
+                <span className="text-xs text-gray-400 px-2 py-1">+{employees.length - 5} more</span>
+              )}
+            </div>
+
+            {error && <p className="text-red-500 text-xs">{error}</p>}
+
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-gray-400">
+                {!canGenerate
+                  ? 'Select at least one attribute or add a description'
+                  : `${selectedAttrs.length} attribute${selectedAttrs.length !== 1 ? 's' : ''} · ${employees.length} employees · Claude will suggest per-employee values`}
               </p>
+              <button
+                onClick={generateSuggestions}
+                disabled={!canGenerate || suggesting || employees.length === 0}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-40 transition-colors"
+              >
+                {suggesting
+                  ? <><span className="animate-spin inline-block">⟳</span> Generating…</>
+                  : <><span>✦</span> Generate AI Suggestions</>}
+              </button>
             </div>
           </div>
-
-          {/* Employee context pill */}
-          <div className="flex flex-wrap gap-2 mb-4">
-            {employees.slice(0, 6).map(e => (
-              <span key={e.id} className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
-                {e.name} · {e.title}
-              </span>
-            ))}
-            {employees.length > 6 && (
-              <span className="text-xs text-gray-400 px-2 py-1">+{employees.length - 6} more</span>
-            )}
-          </div>
-
-          <textarea
-            rows={5}
-            placeholder={
-              change?.event_type === 'perf_cycle'
-                ? "e.g. Give top performers (Senior and above) a 12% comp increase and promote eligible engineers. Mid-performers get 6%. No change for below-expectations."
-                : change?.event_type === 'reorg'
-                ? "e.g. Move all Sales engineers to the Solutions Engineering department under Nina Kowalski. Keep titles the same but update reporting lines."
-                : "Describe what should change for these employees and why. Include any criteria, thresholds, or individual notes."
-            }
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none text-gray-800 placeholder-gray-300"
-          />
-
-          {error && (
-            <p className="text-red-500 text-xs mt-2">{error}</p>
-          )}
-
-          <div className="flex items-center justify-between mt-4">
-            <p className="text-xs text-gray-400">
-              {description.trim().length === 0
-                ? 'Add a description to continue'
-                : `${employees.length} employees · Claude will suggest per-employee changes`}
-            </p>
-            <button
-              onClick={generateSuggestions}
-              disabled={!description.trim() || suggesting || employees.length === 0}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-40 transition-colors"
-            >
-              {suggesting
-                ? <><span className="animate-spin inline-block">⟳</span> Generating...</>
-                : <><span>✦</span> Generate AI Suggestions</>}
-            </button>
-          </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* ── COMPLEX PHASE 2: REVIEW ── */}
       {!isSimple && phase === 'review' && (
         <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-5 py-3 mb-4 flex items-start gap-3">
           <span className="text-indigo-500 mt-0.5">✦</span>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-0.5">Your description</p>
-            <p className="text-sm text-gray-700 leading-relaxed">{description}</p>
+          <div className="flex-1 min-w-0 space-y-1">
+            <div className="flex flex-wrap gap-1.5">
+              {selectedAttrs.map(a => (
+                <span key={a} className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-medium">{attrLabel(a)}</span>
+              ))}
+            </div>
+            {description && <p className="text-sm text-gray-700 leading-relaxed">{description}</p>}
           </div>
         </div>
       )}

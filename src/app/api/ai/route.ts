@@ -54,7 +54,7 @@ Rules:
   }
 
   if (mode === 'suggest') {
-    const { description: changeDescription } = body
+    const { description: changeDescription, targetAttrs } = body
     type EmpInput = {
       name: string; department: string; title: string; location: string
       compensation: number; vertical?: string
@@ -93,9 +93,12 @@ Rules:
       ? `\n\nSupporting document:\n"""\n${documentContext.slice(0, 4000)}\n"""`
       : ''
 
+    const targetSection = Array.isArray(targetAttrs) && targetAttrs.length > 0
+      ? `\nFocus specifically on these attributes: ${targetAttrs.join(', ')}`
+      : ''
     const hint = changeDescription
-      ? `Admin description: "${changeDescription}"${docSection}`
-      : (attrHints[eventType] ?? 'suggest the most relevant attribute changes')
+      ? `Admin description: "${changeDescription}"${targetSection}${docSection}`
+      : `${attrHints[eventType] ?? 'suggest the most relevant attribute changes'}${targetSection}`
 
     const msg = await client.messages.create({
       model: 'claude-sonnet-4-6',
