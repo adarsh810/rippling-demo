@@ -8,7 +8,7 @@ import { useAuth } from '@/lib/auth-context'
 
 const PAGE_SIZE = 10
 
-type FilterKey = 'all' | 'executed' | 'pending_approval' | 'rejected' | 'draft'
+type FilterKey = 'all' | 'executed' | 'approved' | 'pending_approval' | 'rejected' | 'draft'
 
 export default function Dashboard() {
   const { persona } = useAuth()
@@ -18,10 +18,17 @@ export default function Dashboard() {
   const [page, setPage] = useState(1)
 
   useEffect(() => {
-    fetch('/api/bulk-change')
-      .then(r => r.json())
-      .then(d => { setChanges(Array.isArray(d) ? d : []); setLoading(false) })
-      .catch(() => setLoading(false))
+    // Auto-execute sweep: promotes approved changes whose effective_date has arrived
+    fetch('/api/bulk-change/execute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'auto_execute' }),
+    }).finally(() => {
+      fetch('/api/bulk-change')
+        .then(r => r.json())
+        .then(d => { setChanges(Array.isArray(d) ? d : []); setLoading(false) })
+        .catch(() => setLoading(false))
+    })
   }, [])
 
   // Approvers never see drafts
@@ -30,6 +37,7 @@ export default function Dashboard() {
     : changes
 
   const executed = visible.filter(c => c.status === 'executed').length
+  const approved = visible.filter(c => c.status === 'approved').length
   const pending  = visible.filter(c => c.status === 'pending_approval').length
   const rejected = visible.filter(c => c.status === 'rejected').length
   const draft    = visible.filter(c => c.status === 'draft').length
@@ -37,10 +45,11 @@ export default function Dashboard() {
   type Tile = { key: FilterKey; label: string; value: number; color: string; activeColor: string }
 
   const tiles: Tile[] = [
-    { key: 'all',              label: 'Total',    value: visible.length, color: 'text-gray-900',   activeColor: 'border-gray-700 bg-gray-50' },
-    { key: 'executed',         label: 'Executed', value: executed,       color: 'text-green-600',  activeColor: 'border-green-500 bg-green-50' },
-    { key: 'pending_approval', label: 'Pending',  value: pending,        color: 'text-yellow-600', activeColor: 'border-yellow-500 bg-yellow-50' },
-    { key: 'rejected',         label: 'Rejected', value: rejected,       color: 'text-red-500',    activeColor: 'border-red-400 bg-red-50' },
+    { key: 'all',              label: 'Total',     value: visible.length, color: 'text-gray-900',   activeColor: 'border-gray-700 bg-gray-50' },
+    { key: 'pending_approval', label: 'Pending',   value: pending,        color: 'text-yellow-600', activeColor: 'border-yellow-500 bg-yellow-50' },
+    { key: 'approved',         label: 'Approved',  value: approved,       color: 'text-blue-600',   activeColor: 'border-blue-500 bg-blue-50' },
+    { key: 'executed',         label: 'Executed',  value: executed,       color: 'text-green-600',  activeColor: 'border-green-500 bg-green-50' },
+    { key: 'rejected',         label: 'Rejected',  value: rejected,       color: 'text-red-500',    activeColor: 'border-red-400 bg-red-50' },
     ...(persona === 'admin'
       ? [{ key: 'draft' as FilterKey, label: 'Drafts', value: draft, color: 'text-gray-400', activeColor: 'border-gray-400 bg-gray-50' }]
       : []),
@@ -81,7 +90,7 @@ export default function Dashboard() {
         )}
       </div>
 
-      <div className={`grid gap-3 md:gap-4 mb-6 md:mb-8 ${persona === 'admin' ? 'grid-cols-2 md:grid-cols-5' : 'grid-cols-2 md:grid-cols-4'}`}>
+      <div className={`grid gap-3 md:gap-4 mb-6 md:mb-8 ${persona === 'admin' ? 'grid-cols-3 md:grid-cols-6' : 'grid-cols-3 md:grid-cols-5'}`}>
         {tiles.map(t => (
           <button
             key={t.key}

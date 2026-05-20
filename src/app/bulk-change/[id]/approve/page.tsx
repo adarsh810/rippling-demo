@@ -30,7 +30,7 @@ export default function ApprovePage({ params }: { params: Promise<{ id: string }
       setChange(c)
       setItems(Array.isArray(it) ? it : [])
       setLoading(false)
-      if (c && c.status !== 'pending_approval' && c.status !== 'draft') {
+      if (c && ['executed', 'rolled_back', 'rejected'].includes(c.status)) {
         setDone(true)
         setResult({ status: c.status })
       }
@@ -47,8 +47,12 @@ export default function ApprovePage({ params }: { params: Promise<{ id: string }
       body: JSON.stringify({ id, action, reason }),
     })
     const data = await r.json()
-    setResult(data)
-    setDone(true)
+    if (data.status === 'approved') {
+      setChange(prev => prev ? { ...prev, status: 'approved', approved_by: 'Jordan Hayes', approved_at: new Date().toISOString() } : prev)
+    } else {
+      setResult(data)
+      setDone(true)
+    }
     setExecuting(false)
   }
 
@@ -186,6 +190,51 @@ export default function ApprovePage({ params }: { params: Promise<{ id: string }
     </div>
   )
 
+  // ── Approved / Scheduled view (both personas) ────────────────────────
+  if (change?.status === 'approved') {
+    const effectiveDate = change.effective_date ? new Date(change.effective_date + 'T00:00:00') : null
+    const daysUntil = effectiveDate ? Math.ceil((effectiveDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null
+
+    return (
+      <div className="p-4 md:p-8 max-w-4xl mx-auto">
+        {persona === 'approver' && <div className="mb-8"><StepBar current={5} /></div>}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Scheduled</h1>
+            <p className="text-gray-500 text-sm mt-1">Approved and awaiting execution date</p>
+          </div>
+          {change && <StatusBadge status={change.status} />}
+        </div>
+
+        <div className="bg-blue-50 border border-blue-200 rounded-xl px-5 py-4 mb-6 flex items-start gap-3">
+          <span className="text-xl">📅</span>
+          <div>
+            <p className="text-sm font-semibold text-blue-800">
+              Approved · Scheduled for{' '}
+              {effectiveDate
+                ? effectiveDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                : 'the requested date'}
+            </p>
+            <p className="text-xs text-blue-700 mt-0.5">
+              {daysUntil !== null && daysUntil > 0
+                ? `Executes automatically in ${daysUntil} day${daysUntil === 1 ? '' : 's'}.`
+                : daysUntil !== null && daysUntil <= 0
+                ? 'Execution is pending — will process shortly.'
+                : 'Execution date set.'}
+              {change.approved_by && ` Approved by ${change.approved_by}.`}
+            </p>
+          </div>
+        </div>
+
+        <SummaryCards />
+
+        <div className="flex justify-between">
+          <Link href="/" className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">← Dashboard</Link>
+        </div>
+      </div>
+    )
+  }
+
   // ── ADMIN: Awaiting Approval view ────────────────────────────────────
   if (persona === 'admin') {
     return (
@@ -197,6 +246,30 @@ export default function ApprovePage({ params }: { params: Promise<{ id: string }
           </div>
           {change && <StatusBadge status={change.status} />}
         </div>
+
+        {change?.effective_date && (() => {
+          const ed = new Date(change.effective_date + 'T00:00:00')
+          const days = Math.ceil((ed.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+          return (
+            <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-5 py-4 mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">📅</span>
+                <div>
+                  <p className="text-xs text-indigo-500 uppercase tracking-wide font-medium">Requested Execution Date</p>
+                  <p className="text-lg font-bold text-gray-900 mt-0.5">
+                    {ed.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className={`text-2xl font-bold ${days > 7 ? 'text-indigo-600' : days > 0 ? 'text-amber-600' : 'text-red-500'}`}>
+                  {days > 0 ? `${days}d` : days === 0 ? 'Today' : 'Past due'}
+                </p>
+                <p className="text-xs text-gray-400 mt-0.5">{days > 0 ? 'until execution' : ''}</p>
+              </div>
+            </div>
+          )
+        })()}
 
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 mb-6 flex items-start gap-3">
           <span className="text-xl">⏳</span>
@@ -230,6 +303,30 @@ export default function ApprovePage({ params }: { params: Promise<{ id: string }
         {change && <StatusBadge status={change.status} />}
       </div>
 
+      {change?.effective_date && (() => {
+        const ed = new Date(change.effective_date + 'T00:00:00')
+        const days = Math.ceil((ed.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+        return (
+          <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-5 py-4 mb-6 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">📅</span>
+              <div>
+                <p className="text-xs text-indigo-500 uppercase tracking-wide font-medium">Requested Execution Date</p>
+                <p className="text-lg font-bold text-gray-900 mt-0.5">
+                  {ed.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className={`text-2xl font-bold ${days > 7 ? 'text-indigo-600' : days > 0 ? 'text-amber-600' : 'text-red-500'}`}>
+                {days > 0 ? `${days}d` : days === 0 ? 'Today' : 'Past due'}
+              </p>
+              <p className="text-xs text-gray-400 mt-0.5">{days > 0 ? 'until execution' : ''}</p>
+            </div>
+          </div>
+        )
+      })()}
+
       <SummaryCards />
 
       <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
@@ -242,7 +339,7 @@ export default function ApprovePage({ params }: { params: Promise<{ id: string }
                 ? 'border-green-500 bg-green-50 text-green-700'
                 : 'border-gray-200 text-gray-600 hover:border-gray-300'
             }`}
-          >✓ Approve & Execute</button>
+          >✓ Approve</button>
           <button
             onClick={() => setAction('reject')}
             className={`flex-1 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
@@ -269,7 +366,11 @@ export default function ApprovePage({ params }: { params: Promise<{ id: string }
         {action === 'approve' && (
           <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
             <p className="text-xs text-green-700">
-              Approving will immediately update {uniqueEmployees} employee records and propagate changes across {change?.affected_systems?.length ?? 0} downstream systems.
+              Approving will schedule this change for{' '}
+              {change?.effective_date
+                ? new Date(change.effective_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                : 'the requested date'}.
+              Employee records will update automatically on that date and propagate to {change?.affected_systems?.length ?? 0} downstream systems.
               A 24-hour rollback window will be available after execution.
             </p>
           </div>
@@ -288,8 +389,9 @@ export default function ApprovePage({ params }: { params: Promise<{ id: string }
         >
           {executing
             ? 'Processing...'
-            : action === 'approve' ? '✓ Approve & Execute Changes'
-            : action === 'reject'  ? '✕ Reject Change'
+            : action === 'approve'
+              ? `✓ Approve — Schedule for ${change?.effective_date ? new Date(change.effective_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'requested date'}`
+            : action === 'reject' ? '✕ Reject Change'
             : 'Select a decision above'}
         </button>
       </div>
