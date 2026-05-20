@@ -1,19 +1,35 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import clsx from 'clsx'
+import { useAuth } from '@/lib/auth-context'
 
-const links = [
-  { href: '/employees', label: 'Employees',              icon: '👤' },
-  { href: '/',          label: 'Change Monitoring', icon: '⊞' },
+const ALL_LINKS = [
+  { href: '/employees', label: 'Employees',          icon: '👤', adminOnly: true },
+  { href: '/',          label: 'Change Monitoring',  icon: '⊞', adminOnly: false },
 ]
+
+const PERSONAS = {
+  admin:    { name: 'Adarsh Attavar', role: 'HR Administrator' },
+  approver: { name: 'Jordan Hayes',   role: 'HR Approver' },
+}
 
 export default function Nav() {
   const path = usePathname()
+  const router = useRouter()
+  const { persona, setPersona } = useAuth()
+
+  const links = ALL_LINKS.filter(l => !l.adminOnly || persona === 'admin')
+  const user = persona ? PERSONAS[persona] : PERSONAS.admin
 
   const isActive = (href: string) =>
     href === '/' ? path === '/' : path.startsWith(href)
+
+  const switchPersona = () => {
+    setPersona(null)
+    router.push('/login')
+  }
 
   return (
     <>
@@ -46,19 +62,28 @@ export default function Nav() {
           ))}
         </nav>
         <div className="px-5 py-4 border-t border-gray-100">
-          <p className="text-gray-700 text-xs font-medium">Adarsh Attavar</p>
-          <p className="text-gray-400 text-xs">HR Admin</p>
+          <p className="text-gray-700 text-xs font-medium">{user.name}</p>
+          <p className="text-gray-400 text-xs">{user.role}</p>
           <p className="text-gray-400 text-xs font-medium mt-2">Powered by Rippling</p>
+          <button
+            onClick={switchPersona}
+            className="mt-2 text-xs text-indigo-400 hover:text-indigo-600 transition-colors"
+          >
+            Switch persona →
+          </button>
         </div>
       </aside>
 
       {/* ── Mobile top bar ── */}
-      <header className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 flex-shrink-0">
-        <div className="w-7 h-7 rounded-md bg-indigo-600 flex items-center justify-center text-white text-[10px] font-bold tracking-tight">AV</div>
-        <div>
-          <p className="text-gray-900 font-semibold text-sm leading-none">ABC Ventures</p>
-          <p className="text-gray-400 text-xs mt-0.5">Bulk Change</p>
+      <header className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-md bg-indigo-600 flex items-center justify-center text-white text-[10px] font-bold tracking-tight">AV</div>
+          <div>
+            <p className="text-gray-900 font-semibold text-sm leading-none">ABC Ventures</p>
+            <p className="text-gray-400 text-xs mt-0.5">{user.role}</p>
+          </div>
         </div>
+        <button onClick={switchPersona} className="text-xs text-indigo-400 hover:text-indigo-600">Switch</button>
       </header>
 
       {/* ── Mobile bottom nav ── */}

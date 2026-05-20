@@ -1,15 +1,21 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import StepBar from '@/components/StepBar'
 import { EVENT_TEMPLATES, ChangeType } from '@/types'
+import { useAuth } from '@/lib/auth-context'
 
 type DocState = { name: string; text: string; chars: number } | null
 type Route = 'template' | 'manual' | 'ai'
 
 export default function NewBulkChange() {
   const router = useRouter()
+  const { persona } = useAuth()
+
+  useEffect(() => {
+    if (persona === 'approver') router.replace('/')
+  }, [persona, router])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [route, setRoute] = useState<Route | null>(null)

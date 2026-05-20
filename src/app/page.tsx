@@ -4,12 +4,14 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { BulkChange, BulkChangeStatus } from '@/types'
 import StatusBadge from '@/components/StatusBadge'
+import { useAuth } from '@/lib/auth-context'
 
 const PAGE_SIZE = 10
 
 type FilterKey = 'all' | 'executed' | 'pending_approval' | 'draft'
 
 export default function Dashboard() {
+  const { persona } = useAuth()
   const [changes, setChanges] = useState<BulkChange[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<FilterKey>('all')
@@ -43,9 +45,18 @@ export default function Dashboard() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
-  const setFilterAndReset = (f: FilterKey) => {
-    setFilter(f)
-    setPage(1)
+  const setFilterAndReset = (f: FilterKey) => { setFilter(f); setPage(1) }
+
+  const viewHref = (c: BulkChange) => {
+    if (persona === 'approver') return `/bulk-change/${c.id}/approve`
+    // Admin
+    if (c.status === 'draft') return `/bulk-change/${c.id}/scope`
+    return `/bulk-change/${c.id}/approve` // waiting/result view for admin
+  }
+
+  const viewLabel = (c: BulkChange) => {
+    if (persona === 'approver') return 'View →'
+    return c.status === 'draft' ? 'Continue →' : 'View →'
   }
 
   return (
@@ -55,12 +66,14 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-gray-900">Change Monitoring</h1>
           <p className="text-gray-500 text-sm mt-1">AI-powered multi-employee attribute updates</p>
         </div>
-        <Link
-          href="/bulk-change/new"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
-        >
-          <span className="text-base leading-none">+</span> New Bulk Change
-        </Link>
+        {persona === 'admin' && (
+          <Link
+            href="/bulk-change/new"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+          >
+            <span className="text-base leading-none">+</span> New Bulk Change
+          </Link>
+        )}
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
@@ -91,8 +104,12 @@ export default function Dashboard() {
           <div className="p-12 text-center text-gray-400 text-sm">Loading...</div>
         ) : filtered.length === 0 ? (
           <div className="p-12 text-center">
-            <p className="text-gray-400 text-sm mb-4">{filter === 'all' ? 'No bulk changes yet.' : `No ${tiles.find(t => t.key === filter)?.label.toLowerCase()} changes.`}</p>
-            {filter === 'all' && <Link href="/bulk-change/new" className="text-indigo-500 text-sm hover:underline">Create your first bulk change →</Link>}
+            <p className="text-gray-400 text-sm mb-4">
+              {filter === 'all' ? 'No bulk changes yet.' : `No ${tiles.find(t => t.key === filter)?.label.toLowerCase()} changes.`}
+            </p>
+            {filter === 'all' && persona === 'admin' && (
+              <Link href="/bulk-change/new" className="text-indigo-500 text-sm hover:underline">Create your first bulk change →</Link>
+            )}
           </div>
         ) : (
           <>
@@ -123,16 +140,8 @@ export default function Dashboard() {
                     <td className="px-6 py-4"><StatusBadge status={c.status} /></td>
                     <td className="px-6 py-4 text-gray-400">{new Date(c.created_at).toLocaleDateString()}</td>
                     <td className="px-6 py-4">
-                      <Link
-                        href={
-                          c.status === 'draft'            ? `/bulk-change/${c.id}/scope` :
-                          c.status === 'pending_approval' ? `/bulk-change/${c.id}/approve` :
-                          ['executed', 'approved', 'rolled_back', 'rejected'].includes(c.status) ? `/bulk-change/${c.id}/approve` :
-                          `/bulk-change/${c.id}/preview`
-                        }
-                        className="text-indigo-500 hover:text-indigo-700 text-xs"
-                      >
-                        {c.status === 'draft' ? 'Continue →' : 'View →'}
+                      <Link href={viewHref(c)} className="text-indigo-500 hover:text-indigo-700 text-xs">
+                        {viewLabel(c)}
                       </Link>
                     </td>
                   </tr>

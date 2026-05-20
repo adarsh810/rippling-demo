@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
-import Nav from '@/components/Nav'
 import SwRegister from '@/components/SwRegister'
+import { AuthProvider } from '@/lib/auth-context'
+import AppShell from '@/components/AppShell'
 
 export const metadata: Metadata = {
   title: 'Rippling · Bulk Change',
@@ -26,8 +27,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className="h-full">
       <body className="h-full flex flex-col md:flex-row bg-gray-50 antialiased">
         <SwRegister />
-        <Nav />
-        <main className="flex-1 overflow-auto pb-16 md:pb-0">{children}</main>
+        <AuthProvider>
+          <AppShell>{children}</AppShell>
+        </AuthProvider>
       </body>
     </html>
   )
