@@ -8,7 +8,7 @@ import { useAuth } from '@/lib/auth-context'
 
 const PAGE_SIZE = 10
 
-type FilterKey = 'all' | 'executed' | 'pending_approval' | 'draft'
+type FilterKey = 'all' | 'executed' | 'pending_approval' | 'rejected' | 'draft'
 
 export default function Dashboard() {
   const { persona } = useAuth()
@@ -24,23 +24,31 @@ export default function Dashboard() {
       .catch(() => setLoading(false))
   }, [])
 
-  const stats = {
-    total: changes.length,
-    executed: changes.filter(c => c.status === 'executed').length,
-    pending: changes.filter(c => c.status === 'pending_approval').length,
-    draft: changes.filter(c => c.status === 'draft').length,
-  }
+  // Approvers never see drafts
+  const visible = persona === 'approver'
+    ? changes.filter(c => c.status !== 'draft')
+    : changes
 
-  const tiles: { key: FilterKey; label: string; value: number; color: string; activeColor: string }[] = [
-    { key: 'all',              label: 'Total Changes', value: stats.total,    color: 'text-gray-900',   activeColor: 'border-gray-700 bg-gray-50' },
-    { key: 'executed',         label: 'Executed',      value: stats.executed, color: 'text-green-600',  activeColor: 'border-green-500 bg-green-50' },
-    { key: 'pending_approval', label: 'Pending',       value: stats.pending,  color: 'text-yellow-600', activeColor: 'border-yellow-500 bg-yellow-50' },
-    { key: 'draft',            label: 'Drafts',        value: stats.draft,    color: 'text-gray-500',   activeColor: 'border-gray-400 bg-gray-50' },
+  const executed = visible.filter(c => c.status === 'executed').length
+  const pending  = visible.filter(c => c.status === 'pending_approval').length
+  const rejected = visible.filter(c => c.status === 'rejected').length
+  const draft    = visible.filter(c => c.status === 'draft').length
+
+  type Tile = { key: FilterKey; label: string; value: number; color: string; activeColor: string }
+
+  const tiles: Tile[] = [
+    { key: 'all',              label: 'Total',    value: visible.length, color: 'text-gray-900',   activeColor: 'border-gray-700 bg-gray-50' },
+    { key: 'executed',         label: 'Executed', value: executed,       color: 'text-green-600',  activeColor: 'border-green-500 bg-green-50' },
+    { key: 'pending_approval', label: 'Pending',  value: pending,        color: 'text-yellow-600', activeColor: 'border-yellow-500 bg-yellow-50' },
+    { key: 'rejected',         label: 'Rejected', value: rejected,       color: 'text-red-500',    activeColor: 'border-red-400 bg-red-50' },
+    ...(persona === 'admin'
+      ? [{ key: 'draft' as FilterKey, label: 'Drafts', value: draft, color: 'text-gray-400', activeColor: 'border-gray-400 bg-gray-50' }]
+      : []),
   ]
 
   const filtered = filter === 'all'
-    ? changes
-    : changes.filter(c => c.status === (filter as BulkChangeStatus))
+    ? visible
+    : visible.filter(c => c.status === (filter as BulkChangeStatus))
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -49,15 +57,12 @@ export default function Dashboard() {
 
   const viewHref = (c: BulkChange) => {
     if (persona === 'approver') return `/bulk-change/${c.id}/approve`
-    // Admin
     if (c.status === 'draft') return `/bulk-change/${c.id}/scope`
-    return `/bulk-change/${c.id}/approve` // waiting/result view for admin
+    return `/bulk-change/${c.id}/approve`
   }
 
-  const viewLabel = (c: BulkChange) => {
-    if (persona === 'approver') return 'View →'
-    return c.status === 'draft' ? 'Continue →' : 'View →'
-  }
+  const viewLabel = (c: BulkChange) =>
+    persona !== 'approver' && c.status === 'draft' ? 'Continue →' : 'View →'
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
@@ -76,7 +81,7 @@ export default function Dashboard() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
+      <div className={`grid gap-3 md:gap-4 mb-6 md:mb-8 ${persona === 'admin' ? 'grid-cols-2 md:grid-cols-5' : 'grid-cols-2 md:grid-cols-4'}`}>
         {tiles.map(t => (
           <button
             key={t.key}
@@ -105,10 +110,14 @@ export default function Dashboard() {
         ) : filtered.length === 0 ? (
           <div className="p-12 text-center">
             <p className="text-gray-400 text-sm mb-4">
-              {filter === 'all' ? 'No bulk changes yet.' : `No ${tiles.find(t => t.key === filter)?.label.toLowerCase()} changes.`}
+              {filter === 'all'
+                ? 'No changes yet.'
+                : `No ${tiles.find(t => t.key === filter)?.label.toLowerCase()} changes.`}
             </p>
             {filter === 'all' && persona === 'admin' && (
-              <Link href="/bulk-change/new" className="text-indigo-500 text-sm hover:underline">Create your first bulk change →</Link>
+              <Link href="/bulk-change/new" className="text-indigo-500 text-sm hover:underline">
+                Create your first bulk change →
+              </Link>
             )}
           </div>
         ) : (
@@ -125,13 +134,17 @@ export default function Dashboard() {
                 {paginated.map(c => (
                   <tr key={c.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
-                      <p className="font-medium text-gray-900">{c.event_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</p>
+                      <p className="font-medium text-gray-900">
+                        {c.event_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </p>
                       {c.event_description && (
                         <p className="text-gray-400 text-xs mt-0.5 truncate max-w-[200px]">{c.event_description}</p>
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`text-xs px-2 py-0.5 rounded font-medium ${c.change_type === 'complex' ? 'bg-purple-100 text-purple-700' : 'bg-indigo-100 text-indigo-700'}`}>
+                      <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+                        c.change_type === 'complex' ? 'bg-purple-100 text-purple-700' : 'bg-indigo-100 text-indigo-700'
+                      }`}>
                         {c.change_type}
                       </span>
                     </td>
