@@ -242,9 +242,15 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
   const isSimple  = change?.change_type === 'simple'
   const validRules = rules.filter(r => r.new_value.trim())
   const usedAttrs  = new Set(rules.map(r => r.attribute))
-  const scopedVerticals       = [...new Set(employees.map(e => e.vertical))]
-  const verticalSpecificAttrs = scopedVerticals.flatMap(v => (VERTICAL_ATTRS[v] ?? []).map(a => a.key))
-  const ATTRS    = [...new Set([...BASE_ATTRS, ...verticalSpecificAttrs])]
+  const scopedVerticals = [...new Set(employees.map(e => e.vertical))]
+  // Intersection: only include vertical-specific attrs shared by ALL scoped verticals.
+  // If multiple different verticals are scoped, only base attrs are available.
+  const intersectedVerticalAttrs = scopedVerticals.length === 1
+    ? (VERTICAL_ATTRS[scopedVerticals[0]] ?? []).map(a => a.key)
+    : []
+  const ATTRS = [...new Set([...BASE_ATTRS, ...intersectedVerticalAttrs])]
+  const hasMixedVerticals = scopedVerticals.length > 1 &&
+    scopedVerticals.some(v => (VERTICAL_ATTRS[v] ?? []).length > 0)
   const depts     = [...new Set(allEmployees.map(e => e.department))].sort()
   const locations = [...new Set(allEmployees.map(e => e.location))].sort()
   const managers  = [...new Set(allEmployees.map(e => e.name))].sort()
@@ -286,11 +292,18 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
               <h2 className="font-semibold text-gray-900">Apply uniform values to all {employees.length} employees</h2>
               <p className="text-gray-400 text-xs mt-0.5">Add one or more attributes — each value applies to every scoped employee</p>
             </div>
-            <button
-              onClick={addRule}
-              disabled={rules.length >= ATTRS.length}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40"
-            >+ Add attribute</button>
+            <div className="flex flex-col items-end gap-1">
+              <button
+                onClick={addRule}
+                disabled={rules.length >= ATTRS.length}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+              >+ Add attribute</button>
+              {hasMixedVerticals && (
+                <p className="text-xs text-indigo-400">
+                  Showing attrs common to all scoped employment types ({scopedVerticals.map(v => v.replace('_', ' ')).join(', ')})
+                </p>
+              )}
+            </div>
           </div>
           <div className="space-y-3">
             {rules.map((rule, i) => (
