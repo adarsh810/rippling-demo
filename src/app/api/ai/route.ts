@@ -5,18 +5,22 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { mode, description, eventType, employees, changeType } = body
+  const { mode, description, documentContext, eventType, employees, changeType } = body
 
   if (mode === 'infer') {
+    const docSection = documentContext
+      ? `\n\nSupporting document content (use this for additional context):\n"""\n${documentContext.slice(0, 6000)}\n"""`
+      : ''
+
     const msg = await client.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 512,
       system: `You are an AI assistant embedded in Rippling's bulk change workflow.
-Given a natural language description of an HR event, classify it and suggest relevant employee attributes to change.
+Given a natural language description of an HR event (and optionally a supporting document), classify it and suggest relevant employee attributes to change.
 Respond ONLY with valid JSON, no markdown.`,
       messages: [{
         role: 'user',
-        content: `HR event description: "${description}"
+        content: `HR event description: "${description}"${docSection}
 
 Classify this and respond with JSON:
 {
@@ -57,8 +61,12 @@ Rules:
       device_refresh: 'no attribute changes needed — device policy updates are downstream',
     }
 
+    const docSection = documentContext
+      ? `\n\nSupporting document:\n"""\n${documentContext.slice(0, 4000)}\n"""`
+      : ''
+
     const hint = changeDescription
-      ? `Admin description: "${changeDescription}"`
+      ? `Admin description: "${changeDescription}"${docSection}`
       : (attrHints[eventType] ?? 'suggest the most relevant attribute changes')
 
     const msg = await client.messages.create({
