@@ -130,6 +130,22 @@ export const EVENT_TEMPLATES = [
     changeType: 'simple' as ChangeType,
     suggestedAttrs: ['location'],
   },
+  {
+    id: 'contractor_renewal',
+    label: 'Contractor Renewal',
+    description: 'Extend contract end dates and update bill rates in bulk',
+    icon: '📝',
+    changeType: 'simple' as ChangeType,
+    suggestedAttrs: ['contract_end_date', 'bill_rate'],
+  },
+  {
+    id: 'role_change',
+    label: 'Role Change',
+    description: 'Bulk title and department updates across a team or org',
+    icon: '🔄',
+    changeType: 'complex' as ChangeType,
+    suggestedAttrs: ['title', 'department'],
+  },
 ]
 
 export const DOWNSTREAM_SYSTEMS_MAP: Record<string, DownstreamSystem[]> = {
