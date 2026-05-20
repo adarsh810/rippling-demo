@@ -6,7 +6,7 @@ import clsx from 'clsx'
 
 const links = [
   { href: '/employees', label: 'Employees',              icon: '👤' },
-  { href: '/',          label: 'Bulk Change Monitoring', icon: '⊞' },
+  { href: '/',          label: 'Change Monitoring', icon: '⊞' },
 ]
 
 export default function Nav() {
