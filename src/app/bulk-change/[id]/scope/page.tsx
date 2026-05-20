@@ -51,7 +51,7 @@ export default function ScopePage({ params }: { params: Promise<{ id: string }> 
   const [change, setChange] = useState<BulkChange | null>(null)
   const [employees, setEmployees] = useState<Employee[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [filters, setFilters] = useState({ dept: '', vertical: '', location: '' })
+  const [filters, setFilters] = useState({ dept: '', vertical: '', location: '', search: '' })
   const [page, setPage] = useState(1)
   const [saving, setSaving] = useState(false)
 
@@ -77,6 +77,15 @@ export default function ScopePage({ params }: { params: Promise<{ id: string }> 
     if (filters.dept     && e.department !== filters.dept)     return false
     if (filters.vertical && e.vertical   !== filters.vertical) return false
     if (filters.location && e.location   !== filters.location) return false
+    if (filters.search) {
+      const q = filters.search.toLowerCase()
+      if (
+        !e.name.toLowerCase().includes(q) &&
+        !e.title.toLowerCase().includes(q) &&
+        !(e.work_email ?? e.email).toLowerCase().includes(q) &&
+        !(e.manager ?? '').toLowerCase().includes(q)
+      ) return false
+    }
     return true
   })
 
@@ -154,6 +163,13 @@ export default function ScopePage({ params }: { params: Promise<{ id: string }> 
 
       <div className="bg-white rounded-xl border border-gray-200 mb-4 p-3 md:p-4 space-y-2">
         <div className="flex flex-col sm:flex-row gap-2 md:gap-4">
+          <input
+            type="text"
+            placeholder="Search name, title, email, manager…"
+            value={filters.search}
+            onChange={e => setFiltersAndReset({ search: e.target.value })}
+            className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
           <select
             value={filters.dept}
             onChange={e => setFiltersAndReset({ dept: e.target.value })}
@@ -189,7 +205,7 @@ export default function ScopePage({ params }: { params: Promise<{ id: string }> 
           </select>
 
           <button
-            onClick={() => { setFilters({ dept: '', vertical: '', location: '' }); setPage(1) }}
+            onClick={() => { setFilters({ dept: '', vertical: '', location: '', search: '' }); setPage(1) }}
             className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700"
           >Clear</button>
         </div>
