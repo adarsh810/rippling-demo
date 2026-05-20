@@ -236,8 +236,22 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
         setAiUsed(true)
       } catch (e) {
         console.error(e)
-        setError('AI could not generate suggestions. Try rephrasing or check your connection.')
-        return
+        setError('AI generation failed — proceeding with blank values. Fill them in manually.')
+        const fallbackRows: ChangeRow[] = []
+        for (const emp of employees) {
+          const valid = validAttrsForEmployee(emp)
+          for (const attr of selectedAttrs) {
+            if (!valid.has(attr)) continue
+            fallbackRows.push({
+              employee_id: emp.id, employee_name: emp.name, employee_title: emp.title,
+              attribute: attr,
+              old_value: String((emp as unknown as Record<string, unknown>)[attr] ?? ''),
+              new_value: '',
+            })
+          }
+        }
+        setRows(fallbackRows)
+        setAiUsed(false)
       } finally {
         setSuggesting(false)
       }
@@ -582,6 +596,13 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
           </div>
         )
       })()}
+
+      {/* AI error callout (review phase) */}
+      {!isSimple && phase === 'review' && error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 mb-4 text-xs text-red-600">
+          {error}
+        </div>
+      )}
 
       {/* Callout for employees with no valid attrs */}
       {employeesWithNoAttrs.length > 0 && (
