@@ -99,6 +99,7 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
 
   const [change, setChange] = useState<BulkChange | null>(null)
   const [employees, setEmployees] = useState<Employee[]>([])
+  const [allEmployees, setAllEmployees] = useState<Employee[]>([])
   const [rows, setRows] = useState<ChangeRow[]>([])
   const [saving, setSaving] = useState(false)
 
@@ -114,6 +115,8 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
   useEffect(() => {
     supabase.from('rpl_bulk_changes').select('*').eq('id', id).single()
       .then(({ data }) => setChange(data))
+    supabase.from('rpl_employees').select('*').order('name')
+      .then(({ data }) => setAllEmployees(data ?? []))
     if (employeeIds.length > 0) {
       supabase.from('rpl_employees').select('*').in('id', employeeIds)
         .then(({ data }) => setEmployees(data ?? []))
@@ -232,9 +235,9 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
   const scopedVerticals       = [...new Set(employees.map(e => e.vertical))]
   const verticalSpecificAttrs = scopedVerticals.flatMap(v => (VERTICAL_ATTRS[v] ?? []).map(a => a.key))
   const ATTRS    = [...new Set([...BASE_ATTRS, ...verticalSpecificAttrs])]
-  const depts    = [...new Set(employees.map(e => e.department))].sort()
-  const locations = [...new Set(employees.map(e => e.location))].sort()
-  const managers  = [...new Set(employees.map(e => e.name))].sort()
+  const depts     = [...new Set(allEmployees.map(e => e.department))].sort()
+  const locations = [...new Set(allEmployees.map(e => e.location))].sort()
+  const managers  = [...new Set(allEmployees.map(e => e.name))].sort()
   const attrGroups = rows.reduce<Record<string, ChangeRow[]>>((acc, r) => {
     acc[r.attribute] = [...(acc[r.attribute] ?? []), r]; return acc
   }, {})
