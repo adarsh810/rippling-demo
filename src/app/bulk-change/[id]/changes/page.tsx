@@ -43,6 +43,13 @@ function attrLabel(key: string): string {
   return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
 }
 
+function validAttrsForEmployee(emp: Employee): Set<string> {
+  return new Set([
+    ...BASE_ATTRS,
+    ...(VERTICAL_ATTRS[emp.vertical] ?? []).map(a => a.key),
+  ])
+}
+
 function ValueInput({ attr, value, onChange, depts, locations, managers, compact = true }: {
   attr: string
   value: string
@@ -214,6 +221,7 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
         for (const s of suggestions) {
           const emp = employees.find(e => e.name === s.employee_name)
           if (!emp) continue
+          if (!validAttrsForEmployee(emp).has(s.attribute)) continue
           newRows.push({
             employee_id: emp.id,
             employee_name: emp.name,
@@ -234,10 +242,12 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
         setSuggesting(false)
       }
     } else {
-      // No description → create empty rows for manual fill
+      // No description → create empty rows for manual fill, only for valid attrs per employee
       const newRows: ChangeRow[] = []
       for (const emp of employees) {
+        const valid = validAttrsForEmployee(emp)
         for (const attr of selectedAttrs) {
+          if (!valid.has(attr)) continue
           newRows.push({
             employee_id: emp.id,
             employee_name: emp.name,
@@ -257,6 +267,28 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
   const updateRow = (i: number, field: 'attribute' | 'new_value', value: string) =>
     setRows(prev => prev.map((r, idx) => idx === i ? { ...r, [field]: value } : r))
   const removeRow = (i: number) => setRows(prev => prev.filter((_, idx) => idx !== i))
+
+  const handleAddAttrOnReview = (attr: string) => {
+    if (!attr) return
+    setSelectedAttrs(prev => prev.includes(attr) ? prev : [...prev, attr])
+    const newRows = employees
+      .filter(emp => validAttrsForEmployee(emp).has(attr))
+      .filter(emp => !rows.some(r => r.employee_id === emp.id && r.attribute === attr))
+      .map(emp => ({
+        employee_id: emp.id,
+        employee_name: emp.name,
+        employee_title: emp.title,
+        attribute: attr,
+        old_value: String((emp as unknown as Record<string, unknown>)[attr] ?? ''),
+        new_value: '',
+      }))
+    setRows(prev => [...prev, ...newRows])
+  }
+
+  const handleRemoveAttrOnReview = (attr: string) => {
+    setSelectedAttrs(prev => prev.filter(a => a !== attr))
+    setRows(prev => prev.filter(r => r.attribute !== attr))
+  }
 
   // ── Save & continue ─────────────────────────────────────────────────
   const handleContinue = async () => {
@@ -303,6 +335,10 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
   const attrGroups = rows.reduce<Record<string, ChangeRow[]>>((acc, r) => {
     acc[r.attribute] = [...(acc[r.attribute] ?? []), r]; return acc
   }, {})
+  const employeeIdsWithRows = new Set(rows.map(r => r.employee_id))
+  const employeesWithNoAttrs = !isSimple && phase === 'review'
+    ? employees.filter(e => !employeeIdsWithRows.has(e.id))
+    : []
 
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto">
@@ -311,7 +347,7 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-gray-900">
-            {isSimple ? 'Define Uniform Changes' : phase === 'describe' ? 'Describe the Change' : 'Review AI Suggestions'}
+            {isSimple ? 'Define Uniform Changes' : phase === 'describe' ? 'Describe the Change' : 'Review Changes'}
           </h1>
           <p className="text-gray-500 text-sm mt-1">
             {employees.length} employees · {change?.change_type} change
@@ -506,18 +542,51 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
         )
       })()}
 
-      {/* ── COMPLEX PHASE 2: REVIEW ── */}
-      {!isSimple && phase === 'review' && (
-        <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-5 py-3 mb-4 flex items-start gap-3">
-          <span className="text-indigo-500 mt-0.5">✦</span>
-          <div className="flex-1 min-w-0 space-y-1">
-            <div className="flex flex-wrap gap-1.5">
-              {selectedAttrs.map(a => (
-                <span key={a} className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-medium">{attrLabel(a)}</span>
-              ))}
+      {/* ── COMPLEX PHASE 2: REVIEW — attr editor + callout ── */}
+      {!isSimple && phase === 'review' && (() => {
+        const availableToAdd = ATTRS.filter(a => !selectedAttrs.includes(a))
+        return (
+          <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4 space-y-3">
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Attributes in scope</p>
+              <div className="flex flex-wrap gap-2">
+                {selectedAttrs.map(attr => {
+                  const isBase = BASE_ATTRS.includes(attr)
+                  return (
+                    <span key={attr} className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-medium rounded-full">
+                      {attrLabel(attr)}
+                      {!isBase && <span className="text-indigo-300 text-[10px]">({Object.entries(VERTICAL_ATTRS).find(([, attrs]) => attrs.some(a => a.key === attr))?.[0]?.replace('_', ' ')})</span>}
+                      <button onClick={() => handleRemoveAttrOnReview(attr)} className="text-indigo-300 hover:text-indigo-600 leading-none text-base">×</button>
+                    </span>
+                  )
+                })}
+                {availableToAdd.length > 0 && (
+                  <select
+                    value=""
+                    onChange={e => { if (e.target.value) handleAddAttrOnReview(e.target.value) }}
+                    className="text-xs px-2 py-1 border border-dashed border-gray-300 rounded-full text-gray-400 focus:outline-none focus:ring-1 focus:ring-indigo-400 cursor-pointer hover:border-gray-400"
+                  >
+                    <option value="">+ Add attribute</option>
+                    {availableToAdd.map(a => {
+                      const vertical = Object.entries(VERTICAL_ATTRS).find(([, attrs]) => attrs.some(x => x.key === a))?.[0]
+                      return <option key={a} value={a}>{attrLabel(a)}{vertical ? ` (${vertical.replace('_', ' ')})` : ''}</option>
+                    })}
+                  </select>
+                )}
+              </div>
+              <p className="text-xs text-gray-400 mt-1.5">Base attributes apply to all employees · vertical-specific attributes apply only to matching employment types</p>
             </div>
-            {description && <p className="text-sm text-gray-700 leading-relaxed">{description}</p>}
+            {description && (
+              <p className="text-xs text-gray-500 border-t border-gray-100 pt-2">{description}</p>
+            )}
           </div>
+        )
+      })()}
+
+      {/* Callout for employees with no valid attrs */}
+      {employeesWithNoAttrs.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 mb-4 text-xs text-amber-700">
+          {employeesWithNoAttrs.length} employee{employeesWithNoAttrs.length !== 1 ? 's' : ''} {employeesWithNoAttrs.length === 1 ? 'does' : 'do'} not have valid attributes selected — add a relevant attribute above or {employeesWithNoAttrs.length === 1 ? 'this employee' : 'they'} will be skipped.
         </div>
       )}
 
@@ -585,6 +654,18 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
                   <td className="px-5 py-3">
                     <button onClick={() => removeRow(i)} className="text-gray-300 hover:text-red-400 text-lg leading-none">×</button>
                   </td>
+                </tr>
+              ))}
+              {employeesWithNoAttrs.map(e => (
+                <tr key={`skip-${e.id}`} className="opacity-40 bg-gray-50/50">
+                  <td className="px-5 py-3">
+                    <p className="font-medium text-gray-500">{e.name}</p>
+                    <p className="text-gray-400 text-xs">{e.title}</p>
+                  </td>
+                  <td colSpan={(!isSimple && aiUsed) ? 4 : 3} className="px-5 py-3 text-xs text-gray-400 italic">
+                    No valid attributes selected — will be skipped
+                  </td>
+                  <td className="px-5 py-3" />
                 </tr>
               ))}
             </tbody>
