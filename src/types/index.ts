@@ -128,7 +128,7 @@ export const EVENT_TEMPLATES = [
     description: 'Update device policy or equipment assignments',
     icon: '💻',
     changeType: 'simple' as ChangeType,
-    suggestedAttrs: ['location'],
+    suggestedAttrs: ['department', 'title'],
   },
   {
     id: 'contractor_renewal',

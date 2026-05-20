@@ -83,6 +83,9 @@ function ValueInput({ attr, value, onChange, depts, locations, managers, compact
       <datalist id="agencies-list">{AGENCIES.map(a => <option key={a} value={a} />)}</datalist>
     </>
   )
+  if (attr === 'contract_end_date') return (
+    <input type="date" value={value} onChange={e => onChange(e.target.value)} className={cls} />
+  )
   if (NUMERIC_ATTRS.has(attr)) return (
     <input type="number" value={value} onChange={e => onChange(e.target.value)} placeholder={ATTR_PLACEHOLDER[attr] ?? ''} className={cls} />
   )
@@ -103,8 +106,8 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
   const [rows, setRows] = useState<ChangeRow[]>([])
   const [saving, setSaving] = useState(false)
 
-  // Simple flow state
-  const [rules, setRules] = useState<SimpleRule[]>([{ attribute: 'location', new_value: '' }])
+  // Simple flow state — initialized from template suggestedAttrs once change loads
+  const [rules, setRules] = useState<SimpleRule[]>([])
 
   // Complex flow state
   const [phase, setPhase] = useState<'describe' | 'review'>('describe')
@@ -114,7 +117,14 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
 
   useEffect(() => {
     supabase.from('rpl_bulk_changes').select('*').eq('id', id).single()
-      .then(({ data }) => setChange(data))
+      .then(({ data }) => {
+        setChange(data)
+        if (data?.change_type === 'simple') {
+          const tmpl = EVENT_TEMPLATES.find(t => t.id === data.event_type)
+          const attrs = tmpl?.suggestedAttrs?.length ? tmpl.suggestedAttrs : ['location']
+          setRules(attrs.map(a => ({ attribute: a, new_value: '' })))
+        }
+      })
     supabase.from('rpl_employees').select('*').order('name')
       .then(({ data }) => setAllEmployees(data ?? []))
     if (employeeIds.length > 0) {
@@ -290,7 +300,7 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
                   <select
                     value={rule.attribute}
                     onChange={e => updateRule(i, 'attribute', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     {ATTRS.map(a => (
                       <option key={a} value={a} disabled={usedAttrs.has(a) && a !== rule.attribute}>{a}</option>
@@ -324,7 +334,7 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
             <button
               onClick={applyRules}
               disabled={validRules.length === 0}
-              className="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 disabled:opacity-40"
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-40"
             >Apply to All Employees</button>
           </div>
         </div>
@@ -334,7 +344,7 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
       {!isSimple && phase === 'describe' && (
         <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
           <div className="flex items-start gap-3 mb-5">
-            <span className="text-orange-500 text-xl mt-0.5">✦</span>
+            <span className="text-indigo-500 text-xl mt-0.5">✦</span>
             <div>
               <h2 className="font-semibold text-gray-900">Describe what needs to change</h2>
               <p className="text-gray-400 text-sm mt-0.5">
@@ -367,7 +377,7 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
             }
             value={description}
             onChange={e => setDescription(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none text-gray-800 placeholder-gray-300"
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none text-gray-800 placeholder-gray-300"
           />
 
           {error && (
@@ -395,10 +405,10 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
 
       {/* ── COMPLEX PHASE 2: REVIEW ── */}
       {!isSimple && phase === 'review' && (
-        <div className="bg-orange-50 border border-orange-100 rounded-xl px-5 py-3 mb-4 flex items-start gap-3">
-          <span className="text-orange-500 mt-0.5">✦</span>
+        <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-5 py-3 mb-4 flex items-start gap-3">
+          <span className="text-indigo-500 mt-0.5">✦</span>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide mb-0.5">Your description</p>
+            <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-0.5">Your description</p>
             <p className="text-sm text-gray-700 leading-relaxed">{description}</p>
           </div>
         </div>
@@ -411,12 +421,12 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
             <div className="flex items-center gap-3">
               <p className="text-sm font-medium text-gray-700">{rows.length} change{rows.length !== 1 ? 's' : ''} staged</p>
               {isSimple && Object.keys(attrGroups).map(attr => (
-                <span key={attr} className="text-xs px-2 py-0.5 rounded bg-orange-100 text-orange-700 font-medium">
+                <span key={attr} className="text-xs px-2 py-0.5 rounded bg-indigo-100 text-indigo-700 font-medium">
                   {attr} → {attrGroups[attr][0].new_value}
                 </span>
               ))}
             </div>
-            <span className="text-xs text-orange-600 flex items-center gap-1"><span>✦</span> AI suggested · edit freely</span>
+            <span className="text-xs text-indigo-600 flex items-center gap-1"><span>✦</span> AI suggested · edit freely</span>
           </div>
           <table className="w-full text-sm">
             <thead className="bg-gray-50">
@@ -440,7 +450,7 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
                     <select
                       value={r.attribute}
                       onChange={e => updateRow(i, 'attribute', e.target.value)}
-                      className="px-2 py-1 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
+                      className="px-2 py-1 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     >
                       {ATTRS.map(a => <option key={a} value={a}>{a}</option>)}
                     </select>
