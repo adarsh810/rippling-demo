@@ -6,7 +6,7 @@ import StepBar from '@/components/StepBar'
 import { Employee, BulkChange, EVENT_TEMPLATES, VERTICAL_ATTRS } from '@/types'
 import { supabase } from '@/lib/supabase'
 
-const PAGE_SIZE = 30
+const PAGE_SIZE = 15
 
 // Build attr → verticals map (static, derived from VERTICAL_ATTRS)
 const ATTR_TO_VERTICALS: Record<string, string[]> = {}
