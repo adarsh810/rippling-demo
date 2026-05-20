@@ -72,6 +72,7 @@ export default function ScopePage({ params }: { params: Promise<{ id: string }> 
   const verticals = ['full_time', 'hourly', 'contractor']
 
   const filtered = employees.filter(e => {
+    if (isVerticalLocked && !allowedVerticals!.includes(e.vertical)) return false
     if (filters.dept     && e.department !== filters.dept)     return false
     if (filters.vertical && e.vertical   !== filters.vertical) return false
     if (filters.location && e.location   !== filters.location) return false
@@ -193,10 +194,8 @@ export default function ScopePage({ params }: { params: Promise<{ id: string }> 
         </div>
 
         {isVerticalLocked && (
-          <p className="text-xs text-indigo-600 flex items-center gap-1">
-            <span>⚠</span>
-            Employment type locked to <span className="font-semibold ml-0.5">{allowedVerticals!.map(v => v.replace('_', ' ')).join(' / ')}</span>
-            <span className="text-indigo-400 ml-1">— based on template attributes. Other rows are shown but not selectable.</span>
+          <p className="text-xs text-indigo-500">
+            Showing <span className="font-semibold">{allowedVerticals!.map(v => v.replace('_', ' ')).join(' / ')}</span> only — scoped by template attributes
           </p>
         )}
       </div>
@@ -220,26 +219,19 @@ export default function ScopePage({ params }: { params: Promise<{ id: string }> 
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {paginated.map(e => {
-              const allowed = isEmployeeAllowed(e)
-              return (
+            {paginated.map(e => (
                 <tr
                   key={e.id}
-                  onClick={() => allowed && toggle(e.id)}
-                  className={`transition-colors ${
-                    !allowed
-                      ? 'opacity-40 cursor-not-allowed bg-gray-50'
-                      : selected.has(e.id) ? 'bg-indigo-50 cursor-pointer' : 'hover:bg-gray-50 cursor-pointer'
-                  }`}
+                  onClick={() => toggle(e.id)}
+                  className={`cursor-pointer transition-colors ${selected.has(e.id) ? 'bg-indigo-50' : 'hover:bg-gray-50'}`}
                 >
                   <td className="px-4 py-3">
                     <input
                       type="checkbox"
                       checked={selected.has(e.id)}
-                      disabled={!allowed}
                       onChange={() => toggle(e.id)}
                       onClick={ev => ev.stopPropagation()}
-                      className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
+                      className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                     />
                   </td>
                   <td className="px-4 py-3">
@@ -258,8 +250,7 @@ export default function ScopePage({ params }: { params: Promise<{ id: string }> 
                   </td>
                   <td className="px-4 py-3 text-gray-600">${e.compensation.toLocaleString()}</td>
                 </tr>
-              )
-            })}
+            ))}
           </tbody>
         </table>
         {filtered.length === 0 && (
