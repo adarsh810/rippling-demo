@@ -80,6 +80,16 @@ export interface BulkChangeItem {
   employee?: Employee
 }
 
+export interface SavedTemplate {
+  id: string
+  name: string
+  description: string | null
+  change_type: ChangeType
+  suggested_attrs: string[]
+  created_by: string
+  created_at: string
+}
+
 export interface AuditLog {
   id: string
   bulk_change_id: string | null

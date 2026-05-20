@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import StepBar from '@/components/StepBar'
-import { EVENT_TEMPLATES, ChangeType } from '@/types'
+import { EVENT_TEMPLATES, ChangeType, SavedTemplate } from '@/types'
 import { useAuth } from '@/lib/auth-context'
 
 type DocState = { name: string; text: string; chars: number } | null
@@ -20,6 +20,12 @@ export default function NewBulkChange() {
 
   const [route, setRoute] = useState<Route | null>(null)
   const [creating, setCreating] = useState(false)
+
+  // Saved templates from Supabase
+  const [savedTemplates, setSavedTemplates] = useState<SavedTemplate[]>([])
+  useEffect(() => {
+    fetch('/api/templates').then(r => r.json()).then(d => setSavedTemplates(Array.isArray(d) ? d : []))
+  }, [])
 
   // Template route
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
@@ -115,10 +121,18 @@ export default function NewBulkChange() {
     let aiSuggestions: Record<string, unknown> = {}
 
     if (route === 'template') {
-      const t = EVENT_TEMPLATES.find(t => t.id === selectedTemplate)!
-      eventType = t.id
-      changeType = t.changeType
-      eventDescription = t.description
+      const saved = savedTemplates.find(t => t.id === selectedTemplate)
+      if (saved) {
+        eventType = 'custom'
+        changeType = saved.change_type
+        eventDescription = saved.name
+        aiSuggestions = { suggested_attrs: saved.suggested_attrs }
+      } else {
+        const t = EVENT_TEMPLATES.find(t => t.id === selectedTemplate)!
+        eventType = t.id
+        changeType = t.changeType
+        eventDescription = t.description
+      }
     } else if (route === 'manual') {
       eventType = 'custom'
       changeType = manualType!
@@ -188,27 +202,62 @@ export default function NewBulkChange() {
 
       {/* ── Route: Template ── */}
       {route === 'template' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-          {EVENT_TEMPLATES.map(t => (
-            <button
-              key={t.id}
-              onClick={() => setSelectedTemplate(t.id)}
-              className={`text-left p-4 rounded-xl border-2 transition-all ${
-                selectedTemplate === t.id
-                  ? 'border-indigo-500 bg-indigo-50'
-                  : 'border-gray-200 bg-white hover:border-gray-300'
-              }`}
-            >
-              <div className="flex items-center gap-3 mb-1">
-                <span className="text-2xl">{t.icon}</span>
-                <span className="font-semibold text-gray-900">{t.label}</span>
-                <span className={`ml-auto text-xs px-2 py-0.5 rounded font-medium ${
-                  t.changeType === 'complex' ? 'bg-purple-100 text-purple-700' : 'bg-indigo-100 text-indigo-700'
-                }`}>{t.changeType}</span>
+        <div className="space-y-4 mb-6">
+          {savedTemplates.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Saved Templates</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {savedTemplates.map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => setSelectedTemplate(t.id)}
+                    className={`text-left p-4 rounded-xl border-2 transition-all ${
+                      selectedTemplate === t.id
+                        ? 'border-amber-500 bg-amber-50'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 mb-1">
+                      <span className="text-2xl">⭐</span>
+                      <span className="font-semibold text-gray-900">{t.name}</span>
+                      <span className={`ml-auto text-xs px-2 py-0.5 rounded font-medium ${
+                        t.change_type === 'complex' ? 'bg-purple-100 text-purple-700' : 'bg-indigo-100 text-indigo-700'
+                      }`}>{t.change_type}</span>
+                    </div>
+                    {t.description && <p className="text-gray-500 text-sm pl-9">{t.description}</p>}
+                    <p className="text-gray-400 text-xs pl-9 mt-1">{t.suggested_attrs.join(', ')}</p>
+                  </button>
+                ))}
               </div>
-              <p className="text-gray-500 text-sm pl-9">{t.description}</p>
-            </button>
-          ))}
+            </div>
+          )}
+          <div>
+            {savedTemplates.length > 0 && (
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Standard Templates</p>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {EVENT_TEMPLATES.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setSelectedTemplate(t.id)}
+                  className={`text-left p-4 rounded-xl border-2 transition-all ${
+                    selectedTemplate === t.id
+                      ? 'border-indigo-500 bg-indigo-50'
+                      : 'border-gray-200 bg-white hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 mb-1">
+                    <span className="text-2xl">{t.icon}</span>
+                    <span className="font-semibold text-gray-900">{t.label}</span>
+                    <span className={`ml-auto text-xs px-2 py-0.5 rounded font-medium ${
+                      t.changeType === 'complex' ? 'bg-purple-100 text-purple-700' : 'bg-indigo-100 text-indigo-700'
+                    }`}>{t.changeType}</span>
+                  </div>
+                  <p className="text-gray-500 text-sm pl-9">{t.description}</p>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
@@ -342,31 +391,29 @@ export default function NewBulkChange() {
       )}
 
       {/* Summary bar */}
-      {canContinue && (
-        <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 mb-6">
-          <p className="text-sm text-gray-600">
-            <span className="font-medium">Selected flow: </span>
-            {route === 'template' && EVENT_TEMPLATES.find(t => t.id === selectedTemplate)?.label}
-            {route === 'manual' && (manualLabel.trim() || `Custom ${manualType} change`)}
-            {route === 'ai' && inferred?.event_label}
-            {' · '}
-            <span className={`font-medium ${
-              (route === 'template' ? EVENT_TEMPLATES.find(t => t.id === selectedTemplate)?.changeType :
-               route === 'manual' ? manualType : inferred?.change_type) === 'complex'
-                ? 'text-purple-700' : 'text-indigo-700'
-            }`}>
-              {route === 'template' ? EVENT_TEMPLATES.find(t => t.id === selectedTemplate)?.changeType :
-               route === 'manual' ? manualType : inferred?.change_type} change
-            </span>
-          </p>
-          <p className="text-xs text-gray-400 mt-1">
-            {(route === 'template' ? EVENT_TEMPLATES.find(t => t.id === selectedTemplate)?.changeType :
-              route === 'manual' ? manualType : inferred?.change_type) === 'simple'
-              ? 'Same value will apply to all selected employees.'
-              : 'AI will suggest per-employee values — you can edit each one.'}
-          </p>
-        </div>
-      )}
+      {canContinue && (() => {
+        const savedT = route === 'template' ? savedTemplates.find(t => t.id === selectedTemplate) : null
+        const hardT  = route === 'template' ? EVENT_TEMPLATES.find(t => t.id === selectedTemplate) : null
+        const label  = savedT?.name ?? hardT?.label ?? (route === 'manual' ? (manualLabel.trim() || `Custom ${manualType} change`) : inferred?.event_label)
+        const ct     = savedT?.change_type ?? hardT?.changeType ?? (route === 'manual' ? manualType : inferred?.change_type)
+        return (
+          <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 mb-6">
+            <p className="text-sm text-gray-600">
+              <span className="font-medium">Selected flow: </span>
+              {label}
+              {' · '}
+              <span className={`font-medium ${ct === 'complex' ? 'text-purple-700' : 'text-indigo-700'}`}>
+                {ct} change
+              </span>
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              {ct === 'simple'
+                ? 'Same value will apply to all selected employees.'
+                : 'AI will suggest per-employee values — you can edit each one.'}
+            </p>
+          </div>
+        )
+      })()}
 
       <div className="flex justify-end">
         <button

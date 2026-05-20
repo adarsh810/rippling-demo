@@ -10,12 +10,23 @@ const PAGE_SIZE = 10
 
 type FilterKey = 'all' | 'executed' | 'approved' | 'pending_approval' | 'rejected' | 'draft'
 
+interface TemplateModal {
+  changeId: string
+  defaultName: string
+}
+
 export default function Dashboard() {
   const { persona } = useAuth()
   const [changes, setChanges] = useState<BulkChange[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<FilterKey>('all')
   const [page, setPage] = useState(1)
+
+  const [templateModal, setTemplateModal] = useState<TemplateModal | null>(null)
+  const [templateName, setTemplateName] = useState('')
+  const [templateDesc, setTemplateDesc] = useState('')
+  const [savingTemplate, setSavingTemplate] = useState(false)
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     // Auto-execute sweep: promotes approved changes whose effective_date has arrived
@@ -30,6 +41,27 @@ export default function Dashboard() {
         .catch(() => setLoading(false))
     })
   }, [])
+
+  const openTemplateModal = (c: BulkChange) => {
+    setTemplateName(c.event_description?.trim() || c.event_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()))
+    setTemplateDesc('')
+    setTemplateModal({ changeId: c.id, defaultName: c.event_description ?? '' })
+  }
+
+  const handleSaveTemplate = async () => {
+    if (!templateModal || !templateName.trim()) return
+    setSavingTemplate(true)
+    const r = await fetch('/api/templates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bulk_change_id: templateModal.changeId, name: templateName, description: templateDesc }),
+    })
+    if (r.ok) {
+      setSavedIds(prev => new Set([...prev, templateModal.changeId]))
+      setTemplateModal(null)
+    }
+    setSavingTemplate(false)
+  }
 
   // Approvers never see drafts
   const visible = persona === 'approver'
@@ -162,9 +194,23 @@ export default function Dashboard() {
                     <td className="px-6 py-4"><StatusBadge status={c.status} /></td>
                     <td className="px-6 py-4 text-gray-400">{new Date(c.created_at).toLocaleDateString()}</td>
                     <td className="px-6 py-4">
-                      <Link href={viewHref(c)} className="text-indigo-500 hover:text-indigo-700 text-xs">
-                        {viewLabel(c)}
-                      </Link>
+                      <div className="flex items-center gap-3 whitespace-nowrap">
+                        {persona === 'admin' && c.event_type === 'custom' && (
+                          savedIds.has(c.id) ? (
+                            <span className="text-xs text-green-600 font-medium">✓ Saved</span>
+                          ) : (
+                            <button
+                              onClick={() => openTemplateModal(c)}
+                              className="text-xs text-amber-600 hover:text-amber-800 font-medium"
+                            >
+                              + Template
+                            </button>
+                          )
+                        )}
+                        <Link href={viewHref(c)} className="text-indigo-500 hover:text-indigo-700 text-xs">
+                          {viewLabel(c)}
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -200,6 +246,61 @@ export default function Dashboard() {
           </>
         )}
       </div>
+
+      {/* Save as Template modal */}
+      {templateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setTemplateModal(null)} />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <h2 className="text-base font-bold text-gray-900 mb-1">Save as Template</h2>
+            <p className="text-xs text-gray-500 mb-5">
+              This will save the attribute configuration of this change as a reusable template.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Template Name</label>
+                <input
+                  type="text"
+                  value={templateName}
+                  onChange={e => setTemplateName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="e.g. Q3 Comp Review"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Description <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={templateDesc}
+                  onChange={e => setTemplateDesc(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="What does this template cover?"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setTemplateModal(null)}
+                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveTemplate}
+                disabled={!templateName.trim() || savingTemplate}
+                className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-40"
+              >
+                {savingTemplate ? 'Saving…' : 'Save Template'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
