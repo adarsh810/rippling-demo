@@ -27,12 +27,12 @@ export default function Dashboard() {
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6 md:mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Bulk Change</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Bulk Change Monitoring</h1>
           <p className="text-gray-500 text-sm mt-1">AI-powered multi-employee attribute updates</p>
         </div>
         <Link
           href="/bulk-change/new"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
         >
           <span className="text-base leading-none">+</span> New Bulk Change
         </Link>
@@ -40,10 +40,10 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
         {[
-          { label: 'Total Changes', value: stats.total, color: 'text-gray-900' },
-          { label: 'Executed', value: stats.executed, color: 'text-green-600' },
-          { label: 'Pending Approval', value: stats.pending, color: 'text-yellow-600' },
-          { label: 'Drafts', value: stats.draft, color: 'text-gray-500' },
+          { label: 'Total Changes', value: stats.total,    color: 'text-gray-900' },
+          { label: 'Executed',      value: stats.executed, color: 'text-green-600' },
+          { label: 'Pending',       value: stats.pending,  color: 'text-yellow-600' },
+          { label: 'Drafts',        value: stats.draft,    color: 'text-gray-500' },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-5">
             <p className="text-xs text-gray-500 uppercase tracking-wide">{s.label}</p>
@@ -55,7 +55,7 @@ export default function Dashboard() {
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden overflow-x-auto">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
           <h2 className="font-semibold text-gray-900">Recent Bulk Changes</h2>
-          <Link href="/audit" className="text-xs text-orange-500 hover:underline">View audit trail →</Link>
+          <Link href="/audit" className="text-xs text-indigo-500 hover:text-indigo-700">View audit trail →</Link>
         </div>
 
         {loading ? (
@@ -63,7 +63,7 @@ export default function Dashboard() {
         ) : changes.length === 0 ? (
           <div className="p-12 text-center">
             <p className="text-gray-400 text-sm mb-4">No bulk changes yet.</p>
-            <Link href="/bulk-change/new" className="text-orange-500 text-sm hover:underline">Create your first bulk change →</Link>
+            <Link href="/bulk-change/new" className="text-indigo-500 text-sm hover:underline">Create your first bulk change →</Link>
           </div>
         ) : (
           <table className="w-full text-sm">
@@ -84,7 +84,7 @@ export default function Dashboard() {
                     )}
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`text-xs px-2 py-0.5 rounded font-medium ${c.change_type === 'complex' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                    <span className={`text-xs px-2 py-0.5 rounded font-medium ${c.change_type === 'complex' ? 'bg-purple-100 text-purple-700' : 'bg-indigo-100 text-indigo-700'}`}>
                       {c.change_type}
                     </span>
                   </td>
@@ -95,12 +95,12 @@ export default function Dashboard() {
                   <td className="px-6 py-4">
                     <Link
                       href={
-                        c.status === 'draft' ? `/bulk-change/${c.id}/scope` :
+                        c.status === 'draft'            ? `/bulk-change/${c.id}/scope` :
                         c.status === 'pending_approval' ? `/bulk-change/${c.id}/approve` :
-                        c.status === 'executed' || c.status === 'approved' || c.status === 'rolled_back' || c.status === 'rejected' ? `/bulk-change/${c.id}/approve` :
+                        ['executed', 'approved', 'rolled_back', 'rejected'].includes(c.status) ? `/bulk-change/${c.id}/approve` :
                         `/bulk-change/${c.id}/preview`
                       }
-                      className="text-orange-500 hover:underline text-xs"
+                      className="text-indigo-500 hover:text-indigo-700 text-xs"
                     >
                       {c.status === 'draft' ? 'Continue →' : 'View →'}
                     </Link>
