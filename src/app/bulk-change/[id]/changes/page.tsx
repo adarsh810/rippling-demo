@@ -23,12 +23,72 @@ interface SimpleRule {
 
 const BASE_ATTRS = ['compensation', 'title', 'department', 'location', 'manager']
 
+const NUMERIC_ATTRS = new Set(['compensation', 'hourly_rate', 'bill_rate', 'equity_grant', 'pto_days', 'bonus_target'])
+const SHIFT_TYPES   = ['morning', 'afternoon', 'evening', 'night']
+const AGENCIES      = ['TechStaff Solutions', 'Apex Consulting', 'Talent Bridge', 'Prime Resources', 'NextGen Staffing', 'Catalyst Group', 'Summit Professionals']
+
 const ATTR_PLACEHOLDER: Record<string, string> = {
   compensation: 'e.g. 145000',
-  title: 'e.g. Senior Engineer',
-  department: 'e.g. Platform',
-  location: 'e.g. Austin',
-  manager: 'e.g. David Kim',
+  title:        'e.g. Senior Engineer',
+}
+
+const SELECT_CLS = 'w-full px-2 py-1 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500'
+const INPUT_CLS  = 'w-full px-2 py-1 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500'
+
+function ValueInput({ attr, value, onChange, depts, locations, managers, compact = true }: {
+  attr: string
+  value: string
+  onChange: (v: string) => void
+  depts: string[]
+  locations: string[]
+  managers: string[]
+  compact?: boolean
+}) {
+  const cls = compact ? SELECT_CLS : 'w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500'
+
+  if (attr === 'department') return (
+    <select value={value} onChange={e => onChange(e.target.value)} className={cls}>
+      <option value="">— select —</option>
+      {depts.map(d => <option key={d}>{d}</option>)}
+    </select>
+  )
+  if (attr === 'location') return (
+    <select value={value} onChange={e => onChange(e.target.value)} className={cls}>
+      <option value="">— select —</option>
+      {locations.map(l => <option key={l}>{l}</option>)}
+    </select>
+  )
+  if (attr === 'shift_type') return (
+    <select value={value} onChange={e => onChange(e.target.value)} className={cls}>
+      <option value="">— select —</option>
+      {SHIFT_TYPES.map(s => <option key={s}>{s}</option>)}
+    </select>
+  )
+  if (attr === 'overtime_eligible') return (
+    <select value={value} onChange={e => onChange(e.target.value)} className={cls}>
+      <option value="">— select —</option>
+      <option value="true">Yes</option>
+      <option value="false">No</option>
+    </select>
+  )
+  if (attr === 'manager') return (
+    <>
+      <input list="managers-list" value={value} onChange={e => onChange(e.target.value)} placeholder="Type or select" className={cls} />
+      <datalist id="managers-list">{managers.map(m => <option key={m} value={m} />)}</datalist>
+    </>
+  )
+  if (attr === 'agency_name') return (
+    <>
+      <input list="agencies-list" value={value} onChange={e => onChange(e.target.value)} placeholder="Type or select" className={cls} />
+      <datalist id="agencies-list">{AGENCIES.map(a => <option key={a} value={a} />)}</datalist>
+    </>
+  )
+  if (NUMERIC_ATTRS.has(attr)) return (
+    <input type="number" value={value} onChange={e => onChange(e.target.value)} placeholder={ATTR_PLACEHOLDER[attr] ?? ''} className={cls} />
+  )
+  return (
+    <input type="text" value={value} onChange={e => onChange(e.target.value)} placeholder={ATTR_PLACEHOLDER[attr] ?? ''} className={cls} />
+  )
 }
 
 export default function ChangesPage({ params }: { params: Promise<{ id: string }> }) {
@@ -165,13 +225,16 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
   }
 
   // ── Derived ─────────────────────────────────────────────────────────
-  const template = EVENT_TEMPLATES.find(t => t.id === change?.event_type)
-  const isSimple = change?.change_type === 'simple'
+  const template    = EVENT_TEMPLATES.find(t => t.id === change?.event_type)
+  const isSimple  = change?.change_type === 'simple'
   const validRules = rules.filter(r => r.new_value.trim())
-  const usedAttrs = new Set(rules.map(r => r.attribute))
-  const scopedVerticals = [...new Set(employees.map(e => e.vertical))]
+  const usedAttrs  = new Set(rules.map(r => r.attribute))
+  const scopedVerticals       = [...new Set(employees.map(e => e.vertical))]
   const verticalSpecificAttrs = scopedVerticals.flatMap(v => (VERTICAL_ATTRS[v] ?? []).map(a => a.key))
-  const ATTRS = [...new Set([...BASE_ATTRS, ...verticalSpecificAttrs])]
+  const ATTRS    = [...new Set([...BASE_ATTRS, ...verticalSpecificAttrs])]
+  const depts    = [...new Set(employees.map(e => e.department))].sort()
+  const locations = [...new Set(employees.map(e => e.location))].sort()
+  const managers  = [...new Set(employees.map(e => e.name))].sort()
   const attrGroups = rows.reduce<Record<string, ChangeRow[]>>((acc, r) => {
     acc[r.attribute] = [...(acc[r.attribute] ?? []), r]; return acc
   }, {})
@@ -233,12 +296,14 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
                 </div>
                 <div className="flex-1">
                   {i === 0 && <label className="block text-xs font-medium text-gray-400 mb-1 uppercase tracking-wide">New Value (applied to all)</label>}
-                  <input
-                    type={rule.attribute === 'compensation' ? 'number' : 'text'}
-                    placeholder={ATTR_PLACEHOLDER[rule.attribute] ?? ''}
+                  <ValueInput
+                    attr={rule.attribute}
                     value={rule.new_value}
-                    onChange={e => updateRule(i, 'new_value', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    onChange={v => updateRule(i, 'new_value', v)}
+                    depts={depts}
+                    locations={locations}
+                    managers={managers}
+                    compact={false}
                   />
                 </div>
                 {rules.length > 1 && (
@@ -383,11 +448,13 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
                       : r.old_value || '—'}
                   </td>
                   <td className="px-5 py-3">
-                    <input
-                      type={r.attribute === 'compensation' ? 'number' : 'text'}
+                    <ValueInput
+                      attr={r.attribute}
                       value={r.new_value}
-                      onChange={e => updateRow(i, 'new_value', e.target.value)}
-                      className="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-orange-500"
+                      onChange={v => updateRow(i, 'new_value', v)}
+                      depts={depts}
+                      locations={locations}
+                      managers={managers}
                     />
                   </td>
                   {!isSimple && (
