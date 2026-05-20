@@ -24,17 +24,22 @@ Respond ONLY with valid JSON, no markdown.`,
 
 Classify this and respond with JSON:
 {
-  "event_type": "reorg|perf_cycle|new_office|device_refresh|custom",
+  "event_type": "reorg|perf_cycle|new_office|device_refresh|contractor_renewal|role_change|custom",
   "event_label": "Human readable label",
   "change_type": "simple|complex",
-  "suggested_attrs": ["department","title","compensation","location","manager_id"],
+  "suggested_attrs": ["<pick relevant attrs from the full list below>"],
   "reasoning": "1-2 sentence explanation"
 }
 
 Rules:
-- change_type is "simple" if same value applies to all (e.g. everyone moves to same office)
-- change_type is "complex" if values differ per employee (e.g. perf-based comp changes)
-- suggested_attrs must be subset of: department, title, compensation, location, manager_id`
+- change_type is "simple" if the same value applies to all employees (e.g. everyone moves to same office, all contracts extended)
+- change_type is "complex" if values differ per employee (e.g. perf-based comp changes, individual promotions)
+- suggested_attrs must be a subset of these allowed values ONLY:
+    Base (all employees): department, title, compensation, location, manager_id
+    Full-time only: equity_grant, pto_days, bonus_target
+    Hourly only: hourly_rate, overtime_eligible, shift_type
+    Contractor only: contract_end_date, bill_rate, agency_name
+- Choose suggested_attrs that match the employment type implied by the event. For contractor renewals use contract_end_date/bill_rate. For hourly schedule changes use shift_type/overtime_eligible. For office moves use location. Do not mix attrs from different employment-type groups unless the event genuinely spans them.`
       }]
     })
 

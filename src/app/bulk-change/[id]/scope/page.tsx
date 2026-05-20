@@ -20,18 +20,20 @@ Object.entries(VERTICAL_ATTRS).forEach(([v, attrs]) => {
 // null = no restriction (all verticals ok).
 function computeAllowedVerticals(change: BulkChange | null): string[] | null {
   if (!change || change.change_type !== 'simple') return null
-  if (change.event_type === 'custom') return null // quick-start route — no restriction
 
-  // AI route: suggested_attrs stored in ai_suggestions
-  // Template route: falls back to EVENT_TEMPLATES
   let suggestedAttrs: string[] = []
+
+  // AI route: ai_suggestions.suggested_attrs is always checked first.
+  // Quick-start (manual) route: event_type='custom' with empty ai_suggestions → stays []
   const aiSuggested = (change.ai_suggestions as Record<string, unknown>)?.suggested_attrs
   if (Array.isArray(aiSuggested) && aiSuggested.length > 0) {
     suggestedAttrs = aiSuggested as string[]
-  } else {
+  } else if (change.event_type !== 'custom') {
+    // Template route — look up suggestedAttrs from the template definition
     const template = EVENT_TEMPLATES.find(t => t.id === change.event_type)
     suggestedAttrs = template?.suggestedAttrs ?? []
   }
+  // Quick-start: event_type='custom' + no ai suggested_attrs → suggestedAttrs stays [] → no restriction
 
   if (!suggestedAttrs.length) return null
 
