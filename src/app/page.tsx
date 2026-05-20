@@ -194,16 +194,17 @@ export default function Dashboard() {
                     <td className="px-6 py-4"><StatusBadge status={c.status} /></td>
                     <td className="px-6 py-4 text-gray-400">{new Date(c.created_at).toLocaleDateString()}</td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-3 whitespace-nowrap">
+                      <div className="flex items-center gap-2 whitespace-nowrap">
                         {persona === 'admin' && c.event_type === 'custom' && (
                           savedIds.has(c.id) ? (
-                            <span className="text-xs text-green-600 font-medium">✓ Saved</span>
+                            <span title="Saved as template" className="text-green-500 text-base leading-none">⭐</span>
                           ) : (
                             <button
                               onClick={() => openTemplateModal(c)}
-                              className="text-xs text-amber-600 hover:text-amber-800 font-medium"
+                              title="Save as template"
+                              className="text-gray-300 hover:text-amber-400 text-base leading-none transition-colors"
                             >
-                              + Template
+                              ☆
                             </button>
                           )
                         )}

@@ -27,6 +27,12 @@ export default function NewBulkChange() {
     fetch('/api/templates').then(r => r.json()).then(d => setSavedTemplates(Array.isArray(d) ? d : []))
   }, [])
 
+  const handleDeleteTemplate = async (id: string) => {
+    await fetch(`/api/templates/${id}`, { method: 'DELETE' })
+    setSavedTemplates(prev => prev.filter(t => t.id !== id))
+    if (selectedTemplate === id) setSelectedTemplate(null)
+  }
+
   // Template route
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
 
@@ -208,25 +214,33 @@ export default function NewBulkChange() {
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Saved Templates</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {savedTemplates.map(t => (
-                  <button
-                    key={t.id}
-                    onClick={() => setSelectedTemplate(t.id)}
-                    className={`text-left p-4 rounded-xl border-2 transition-all ${
-                      selectedTemplate === t.id
-                        ? 'border-amber-500 bg-amber-50'
-                        : 'border-gray-200 bg-white hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 mb-1">
-                      <span className="text-2xl">⭐</span>
-                      <span className="font-semibold text-gray-900">{t.name}</span>
-                      <span className={`ml-auto text-xs px-2 py-0.5 rounded font-medium ${
-                        t.change_type === 'complex' ? 'bg-purple-100 text-purple-700' : 'bg-indigo-100 text-indigo-700'
-                      }`}>{t.change_type}</span>
-                    </div>
-                    {t.description && <p className="text-gray-500 text-sm pl-9">{t.description}</p>}
-                    <p className="text-gray-400 text-xs pl-9 mt-1">{t.suggested_attrs.join(', ')}</p>
-                  </button>
+                  <div key={t.id} className="relative group">
+                    <button
+                      onClick={() => setSelectedTemplate(t.id)}
+                      className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
+                        selectedTemplate === t.id
+                          ? 'border-amber-500 bg-amber-50'
+                          : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 mb-1 pr-6">
+                        <span className="text-2xl">⭐</span>
+                        <span className="font-semibold text-gray-900">{t.name}</span>
+                        <span className={`ml-auto text-xs px-2 py-0.5 rounded font-medium ${
+                          t.change_type === 'complex' ? 'bg-purple-100 text-purple-700' : 'bg-indigo-100 text-indigo-700'
+                        }`}>{t.change_type}</span>
+                      </div>
+                      {t.description && <p className="text-gray-500 text-sm pl-9">{t.description}</p>}
+                      <p className="text-gray-400 text-xs pl-9 mt-1">{t.suggested_attrs.join(', ')}</p>
+                    </button>
+                    <button
+                      onClick={e => { e.stopPropagation(); handleDeleteTemplate(t.id) }}
+                      title="Delete template"
+                      className="absolute top-3 right-3 text-gray-300 hover:text-red-400 text-lg leading-none opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      ×
+                    </button>
+                  </div>
                 ))}
               </div>
             </div>
