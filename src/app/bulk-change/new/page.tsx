@@ -23,7 +23,6 @@ export default function NewBulkChange() {
 
   // Document state
   const [doc, setDoc]             = useState<DocState>(null)
-  const [docUrl, setDocUrl]       = useState('')
   const [extracting, setExtracting] = useState(false)
   const [extractError, setExtractError] = useState('')
   const [dragging, setDragging]   = useState(false)
@@ -62,13 +61,6 @@ export default function NewBulkChange() {
     const file = e.dataTransfer.files[0]
     if (file) handleFile(file)
   }, [handleFile])
-
-  const handleFetchUrl = async () => {
-    if (!docUrl.trim()) return
-    const fd = new FormData()
-    fd.append('url', docUrl.trim())
-    await extractDocument(fd)
-  }
 
   const handleTemplateSelect = (id: string) => {
     setSelected(id)
@@ -155,83 +147,13 @@ export default function NewBulkChange() {
       </div>
 
       {/* Describe + Document upload */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6 space-y-4">
-        <div>
-          <p className="text-sm font-medium text-gray-700">
-            Or describe a new situation
-            <span className="ml-2 text-xs text-gray-400 font-normal">AI will classify and route automatically</span>
-          </p>
-        </div>
+      <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6 space-y-3">
+        <p className="text-sm font-medium text-gray-700">
+          Or describe a new situation
+          <span className="ml-2 text-xs text-gray-400 font-normal">AI will classify and route automatically</span>
+        </p>
 
-        {/* Drop zone */}
-        <div
-          onDragOver={e => { e.preventDefault(); setDragging(true) }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={handleDrop}
-          onClick={() => !extracting && fileInputRef.current?.click()}
-          className={`relative border-2 border-dashed rounded-xl px-6 py-5 text-center cursor-pointer transition-colors ${
-            dragging
-              ? 'border-indigo-400 bg-indigo-50'
-              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-          }`}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.csv,.txt,text/plain,text/csv,application/pdf"
-            className="hidden"
-            onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
-          />
-          {extracting ? (
-            <div className="flex items-center justify-center gap-2 text-indigo-500 text-sm">
-              <span className="animate-spin inline-block">⟳</span> Extracting document…
-            </div>
-          ) : doc ? (
-            <div className="flex items-center justify-center gap-3 text-sm">
-              <span className="text-green-500">✓</span>
-              <span className="font-medium text-gray-800">{doc.name}</span>
-              <span className="text-gray-400 text-xs">{doc.chars.toLocaleString()} chars extracted</span>
-              <button
-                onClick={e => { e.stopPropagation(); setDoc(null); setDocUrl('') }}
-                className="ml-1 text-gray-300 hover:text-red-400 text-lg leading-none"
-              >×</button>
-            </div>
-          ) : (
-            <div className="text-gray-400 text-sm space-y-1">
-              <p className="text-base">📎</p>
-              <p>Drop a <span className="font-medium text-gray-600">PDF</span>, <span className="font-medium text-gray-600">CSV</span>, or <span className="font-medium text-gray-600">TXT</span> file here</p>
-              <p className="text-xs">or click to browse</p>
-            </div>
-          )}
-        </div>
-
-        {extractError && <p className="text-xs text-red-500">{extractError}</p>}
-
-        {/* Google Docs link */}
-        <div className="flex items-center gap-2">
-          <div className="flex-1 h-px bg-gray-100" />
-          <span className="text-xs text-gray-400 flex-shrink-0">or paste a Google Docs link</span>
-          <div className="flex-1 h-px bg-gray-100" />
-        </div>
-        <div className="flex gap-2">
-          <input
-            type="url"
-            placeholder="https://docs.google.com/document/d/..."
-            value={docUrl}
-            onChange={e => setDocUrl(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleFetchUrl()}
-            className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-          <button
-            onClick={handleFetchUrl}
-            disabled={!docUrl.trim() || extracting}
-            className="px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 whitespace-nowrap"
-          >
-            {extracting ? '⟳' : 'Fetch'}
-          </button>
-        </div>
-
-        {/* Description + Ask AI */}
+        {/* Description input — primary */}
         <div className="flex gap-3">
           <input
             type="text"
@@ -239,12 +161,12 @@ export default function NewBulkChange() {
             value={description}
             onChange={e => { setDescription(e.target.value); setSelected(null); setInferred(null) }}
             onKeyDown={e => e.key === 'Enter' && handleInfer()}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            className="flex-1 px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           />
           <button
             onClick={handleInfer}
             disabled={!description.trim() || inferring}
-            className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-40 transition-colors flex items-center gap-2 whitespace-nowrap"
+            className="px-4 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-40 transition-colors flex items-center gap-2 whitespace-nowrap"
           >
             {inferring ? (
               <><span className="animate-spin">⟳</span> Inferring…</>
@@ -253,6 +175,46 @@ export default function NewBulkChange() {
             )}
           </button>
         </div>
+
+        {/* Attach file — small CTA */}
+        <div
+          onDragOver={e => { e.preventDefault(); setDragging(true) }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={handleDrop}
+          className={`transition-colors rounded-lg ${dragging ? 'outline outline-2 outline-indigo-400 bg-indigo-50' : ''}`}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.csv,.txt,text/plain,text/csv,application/pdf"
+            className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
+          />
+          {doc ? (
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span className="text-green-500">✓</span>
+              <span className="font-medium">{doc.name}</span>
+              <span className="text-gray-400 text-xs">{doc.chars.toLocaleString()} chars</span>
+              <button
+                onClick={() => setDoc(null)}
+                className="text-gray-300 hover:text-red-400 text-lg leading-none ml-1"
+              >×</button>
+            </div>
+          ) : extracting ? (
+            <span className="flex items-center gap-1.5 text-xs text-indigo-500">
+              <span className="animate-spin">⟳</span> Extracting…
+            </span>
+          ) : (
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <span>📎</span> Attach file (PDF, CSV, TXT) or drop here
+            </button>
+          )}
+        </div>
+
+        {extractError && <p className="text-xs text-red-500">{extractError}</p>}
         {error && <p className="text-red-500 text-xs">{error}</p>}
       </div>
 
