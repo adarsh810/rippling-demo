@@ -32,10 +32,18 @@ function formatVal(key: string, val: unknown): string {
 
 type EditForm = Partial<Record<string, string | number | boolean>>
 
-function EditPanel({ employee, onClose, onSaved }: {
+const AGENCIES = [
+  'TechStaff Solutions', 'Apex Consulting', 'Talent Bridge',
+  'Prime Resources', 'NextGen Staffing', 'Catalyst Group', 'Summit Professionals',
+]
+
+function EditPanel({ employee, onClose, onSaved, depts, locations, managers }: {
   employee: Employee
   onClose: () => void
   onSaved: (updated: Employee) => void
+  depts: string[]
+  locations: string[]
+  managers: string[]
 }) {
   const [form, setForm] = useState<EditForm>({
     name:              employee.name,
@@ -102,9 +110,38 @@ function EditPanel({ employee, onClose, onSaved }: {
       <input
         type={type}
         value={String(form[key] ?? '')}
-        onChange={e => set(key, type === 'number' ? e.target.value : e.target.value)}
+        onChange={e => set(key, e.target.value)}
         className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
       />
+    </div>
+  )
+
+  const dropdown = (label: string, key: string, options: string[], allowCustom = false) => (
+    <div>
+      <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
+      {allowCustom ? (
+        <input
+          list={`${key}-list`}
+          value={String(form[key] ?? '')}
+          onChange={e => set(key, e.target.value)}
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+        </input>
+      ) : null}
+      {allowCustom && (
+        <datalist id={`${key}-list`}>
+          {options.map(o => <option key={o} value={o} />)}
+        </datalist>
+      )}
+      {!allowCustom && (
+        <select
+          value={String(form[key] ?? '')}
+          onChange={e => set(key, e.target.value)}
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          {options.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+      )}
     </div>
   )
 
@@ -124,9 +161,9 @@ function EditPanel({ employee, onClose, onSaved }: {
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Core Info</p>
           {field('Name', 'name')}
           {field('Title', 'title')}
-          {field('Department', 'department')}
-          {field('Location', 'location')}
-          {field('Manager', 'manager')}
+          {dropdown('Department', 'department', depts)}
+          {dropdown('Location', 'location', locations)}
+          {dropdown('Manager', 'manager', managers, true)}
           {field('Compensation ($)', 'compensation', 'number')}
 
           {employee.vertical === 'full_time' && (
@@ -170,7 +207,7 @@ function EditPanel({ employee, onClose, onSaved }: {
             <>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide pt-2">Contractor Fields</p>
               {field('Bill Rate ($/hr)', 'bill_rate', 'number')}
-              {field('Agency Name', 'agency_name')}
+              {dropdown('Agency Name', 'agency_name', AGENCIES, true)}
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Contract End Date</label>
                 <input
@@ -466,6 +503,9 @@ export default function EmployeesPage() {
           employee={editing}
           onClose={() => setEditing(null)}
           onSaved={handleSaved}
+          depts={depts}
+          locations={locations}
+          managers={[...new Set(employees.map(e => e.name))].sort()}
         />
       )}
     </div>
