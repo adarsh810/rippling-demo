@@ -179,56 +179,79 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
   }
 
   // ── Complex helpers ─────────────────────────────────────────────────
-  const generateSuggestions = async () => {
-    if (!change || employees.length === 0) return
-    if (selectedAttrs.length === 0 && !description.trim()) return
-    setSuggesting(true)
+  const [aiUsed, setAiUsed] = useState(false)
+
+  const handleDescribeContinue = async () => {
+    if (!change || employees.length === 0 || selectedAttrs.length === 0) return
     setError('')
-    try {
-      const r = await fetch('/api/ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mode: 'suggest',
-          eventType: change.event_type,
-          changeType: change.change_type,
-          description: description.trim() || null,
-          targetAttrs: selectedAttrs,
-          employees: employees.map(e => ({
-            name: e.name, department: e.department, title: e.title,
-            location: e.location, compensation: e.compensation,
-            vertical: e.vertical,
-            // vertical-specific fields so AI can suggest appropriate attrs
-            hourly_rate: e.hourly_rate, overtime_eligible: e.overtime_eligible, shift_type: e.shift_type,
-            equity_grant: e.equity_grant, bonus_target: e.bonus_target, pto_days: e.pto_days,
-            bill_rate: e.bill_rate, agency_name: e.agency_name, contract_end_date: e.contract_end_date,
-          })),
-        }),
-      })
-      const suggestions = await r.json()
-      if (!Array.isArray(suggestions)) throw new Error('Unexpected response')
-      const newRows: ChangeRow[] = []
-      for (const s of suggestions) {
-        const emp = employees.find(e => e.name === s.employee_name)
-        if (!emp) continue
-        newRows.push({
-          employee_id: emp.id,
-          employee_name: emp.name,
-          employee_title: emp.title,
-          attribute: s.attribute,
-          old_value: String((emp as unknown as Record<string, unknown>)[s.attribute] ?? ''),
-          new_value: String(s.new_value),
-          reasoning: s.reasoning,
+
+    if (description.trim()) {
+      // Description present → call AI
+      setSuggesting(true)
+      try {
+        const r = await fetch('/api/ai', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mode: 'suggest',
+            eventType: change.event_type,
+            changeType: change.change_type,
+            description: description.trim(),
+            targetAttrs: selectedAttrs,
+            employees: employees.map(e => ({
+              name: e.name, department: e.department, title: e.title,
+              location: e.location, compensation: e.compensation,
+              vertical: e.vertical,
+              hourly_rate: e.hourly_rate, overtime_eligible: e.overtime_eligible, shift_type: e.shift_type,
+              equity_grant: e.equity_grant, bonus_target: e.bonus_target, pto_days: e.pto_days,
+              bill_rate: e.bill_rate, agency_name: e.agency_name, contract_end_date: e.contract_end_date,
+            })),
+          }),
         })
+        const suggestions = await r.json()
+        if (!Array.isArray(suggestions)) throw new Error('Unexpected response')
+        const newRows: ChangeRow[] = []
+        for (const s of suggestions) {
+          const emp = employees.find(e => e.name === s.employee_name)
+          if (!emp) continue
+          newRows.push({
+            employee_id: emp.id,
+            employee_name: emp.name,
+            employee_title: emp.title,
+            attribute: s.attribute,
+            old_value: String((emp as unknown as Record<string, unknown>)[s.attribute] ?? ''),
+            new_value: String(s.new_value),
+            reasoning: s.reasoning,
+          })
+        }
+        setRows(newRows)
+        setAiUsed(true)
+      } catch (e) {
+        console.error(e)
+        setError('AI could not generate suggestions. Try rephrasing or check your connection.')
+        return
+      } finally {
+        setSuggesting(false)
+      }
+    } else {
+      // No description → create empty rows for manual fill
+      const newRows: ChangeRow[] = []
+      for (const emp of employees) {
+        for (const attr of selectedAttrs) {
+          newRows.push({
+            employee_id: emp.id,
+            employee_name: emp.name,
+            employee_title: emp.title,
+            attribute: attr,
+            old_value: String((emp as unknown as Record<string, unknown>)[attr] ?? ''),
+            new_value: '',
+          })
+        }
       }
       setRows(newRows)
-      setPhase('review')
-    } catch (e) {
-      console.error(e)
-      setError('AI could not generate suggestions. Try rephrasing or check your connection.')
-    } finally {
-      setSuggesting(false)
+      setAiUsed(false)
     }
+    setPhase('review')
   }
 
   const updateRow = (i: number, field: 'attribute' | 'new_value', value: string) =>
@@ -299,7 +322,7 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
         {/* Complex review phase: re-describe button */}
         {!isSimple && phase === 'review' && (
           <button
-            onClick={() => { setPhase('describe'); setRows([]) }}
+            onClick={() => { setPhase('describe'); setRows([]); setAiUsed(false) }}
             className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
           >
             ← Re-describe
@@ -463,18 +486,20 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
 
             <div className="flex items-center justify-between">
               <p className="text-xs text-gray-400">
-                {!canGenerate
-                  ? 'Select at least one attribute or add a description'
-                  : `${selectedAttrs.length} attribute${selectedAttrs.length !== 1 ? 's' : ''} · ${employees.length} employees · Claude will suggest per-employee values`}
+                {selectedAttrs.length === 0
+                  ? 'Select at least one attribute to continue'
+                  : description.trim()
+                    ? `${selectedAttrs.length} attr${selectedAttrs.length !== 1 ? 's' : ''} · ${employees.length} employees · Claude will suggest values`
+                    : `${selectedAttrs.length} attr${selectedAttrs.length !== 1 ? 's' : ''} · ${employees.length} employees · you'll fill values manually`}
               </p>
               <button
-                onClick={generateSuggestions}
-                disabled={!canGenerate || suggesting || employees.length === 0}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-40 transition-colors"
+                onClick={handleDescribeContinue}
+                disabled={selectedAttrs.length === 0 || suggesting || employees.length === 0}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-40 transition-colors"
               >
                 {suggesting
                   ? <><span className="animate-spin inline-block">⟳</span> Generating…</>
-                  : <><span>✦</span> Generate AI Suggestions</>}
+                  : 'Preview Changes →'}
               </button>
             </div>
           </div>
@@ -508,7 +533,7 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
                 </span>
               ))}
             </div>
-            <span className="text-xs text-indigo-600 flex items-center gap-1"><span>✦</span> AI suggested · edit freely</span>
+            {aiUsed && <span className="text-xs text-indigo-600 flex items-center gap-1"><span>✦</span> AI suggested · edit freely</span>}
           </div>
           <table className="w-full text-sm">
             <thead className="bg-gray-50">
@@ -517,7 +542,7 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
                 <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Attribute</th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Current</th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">New Value</th>
-                {!isSimple && <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">AI Reasoning</th>}
+                {!isSimple && aiUsed && <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">AI Reasoning</th>}
                 <th className="px-5 py-3 w-8" />
               </tr>
             </thead>
@@ -552,7 +577,7 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
                       managers={managers}
                     />
                   </td>
-                  {!isSimple && (
+                  {!isSimple && aiUsed && (
                     <td className="px-5 py-3 text-gray-400 text-xs max-w-[200px]">
                       {r.reasoning ?? '—'}
                     </td>
@@ -572,13 +597,15 @@ export default function ChangesPage({ params }: { params: Promise<{ id: string }
           onClick={() => router.push(`/bulk-change/${id}/scope`)}
           className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700"
         >← Back</button>
-        <button
-          onClick={handleContinue}
-          disabled={rows.length === 0 || saving}
-          className="px-6 py-2.5 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 disabled:opacity-40 transition-colors"
-        >
-          {saving ? 'Saving...' : 'Preview Changes →'}
-        </button>
+        {(!isSimple ? phase === 'review' : true) && (
+          <button
+            onClick={handleContinue}
+            disabled={rows.length === 0 || saving}
+            className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-40 transition-colors"
+          >
+            {saving ? 'Saving…' : 'Preview Changes →'}
+          </button>
+        )}
       </div>
     </div>
   )
